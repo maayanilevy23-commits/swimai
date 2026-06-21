@@ -16,11 +16,18 @@ function App() {
     }}>
       <div style={{maxWidth: "1000px", margin: "0 auto"}}>
         <div style={{textAlign: "center", marginBottom: "40px"}}>
-          <h1 style={{fontSize: "56px", marginBottom: "10px"}}>
-            SwimAI
-          </h1>
+          <h1 style={{fontSize: "56px", marginBottom: "10px"}}>SwimAI</h1>
           <p style={{color:"#cbd5e1", fontSize:"20px"}}>
-            AI-powered race analysis for swimmers, parents, and coaches.
+            Upload race videos from your computer or Photos library and receive swim race analysis.
+          </p>
+          <p style={{
+            color:"#fbbf24",
+            background:"#422006",
+            padding:"12px",
+            borderRadius:"10px",
+            marginTop:"20px"
+          }}>
+            Prototype mode: this version shows sample feedback. Real video analysis is coming soon.
           </p>
         </div>
 
@@ -44,8 +51,10 @@ function App() {
               marginBottom: "20px",
               background: "#0f172a"
             }}>
-              <p style={{fontSize:"18px"}}>Drop your swim video here</p>
-              <p style={{color:"#94a3b8"}}>or select a file</p>
+              <p style={{fontSize:"18px"}}>Select a swim race video</p>
+              <p style={{color:"#94a3b8"}}>
+                Supports videos from computer, iPhone, or Photos library
+              </p>
 
               <input
                 type="file"
@@ -58,13 +67,12 @@ function App() {
 
               {fileName && (
                 <p style={{color:"#38bdf8", marginTop:"15px"}}>
-                  Selected: {fileName}
+                  Selected video: {fileName}
                 </p>
               )}
             </div>
 
             <label>Stroke</label>
-            <br />
             <select
               value={stroke}
               onChange={(e) => {
@@ -86,7 +94,6 @@ function App() {
             </select>
 
             <label>Distance</label>
-            <br />
             <select
               value={distance}
               onChange={(e) => {
@@ -120,7 +127,7 @@ function App() {
               }}
               onClick={() => setShowResult(true)}
             >
-              Analyze Race
+              Generate Sample Analysis
             </button>
           </div>
 
@@ -133,8 +140,7 @@ function App() {
 
             {!showResult && (
               <p style={{color:"#94a3b8", lineHeight:"1.6"}}>
-                Upload a race video, choose the event, and click Analyze Race
-                to generate a sample SwimAI report.
+                Upload a video, choose the stroke and distance, then generate a sample report.
               </p>
             )}
 
@@ -149,42 +155,28 @@ function App() {
                   <p><strong>Video:</strong> {fileName || "No video selected"}</p>
                   <p><strong>Event:</strong> {distance} {stroke}</p>
                   <h1 style={{color:"#38bdf8"}}>82/100</h1>
-                  <p style={{color:"#cbd5e1"}}>Overall Race Score</p>
+                  <p style={{color:"#cbd5e1"}}>Sample Race Score</p>
                 </div>
 
-                <div style={{
-                  background: "#052e2b",
-                  padding: "18px",
-                  borderRadius: "12px",
-                  marginBottom: "16px"
-                }}>
-                  <h3>Strengths</h3>
+                <div style={{background:"#052e2b", padding:"18px", borderRadius:"12px", marginBottom:"16px"}}>
+                  <h3>Sample Strengths</h3>
                   <p>✅ Strong breakout</p>
                   <p>✅ Good first-half pace</p>
                   <p>✅ Consistent body line</p>
                 </div>
 
-                <div style={{
-                  background: "#3b1d0b",
-                  padding: "18px",
-                  borderRadius: "12px",
-                  marginBottom: "16px"
-                }}>
-                  <h3>Needs Improvement</h3>
+                <div style={{background:"#3b1d0b", padding:"18px", borderRadius:"12px", marginBottom:"16px"}}>
+                  <h3>Sample Needs Improvement</h3>
                   <p>⚠️ Stroke rate drops late in the race</p>
                   <p>⚠️ Turns need faster rotation</p>
                   <p>⚠️ Breathing pattern slightly inconsistent</p>
                 </div>
 
-                <div style={{
-                  background: "#0f172a",
-                  padding: "18px",
-                  borderRadius: "12px"
-                }}>
-                  <h3>Coach Recommendation</h3>
+                <div style={{background:"#0f172a", padding:"18px", borderRadius:"12px"}}>
+                  <h3>Next Product Step</h3>
                   <p style={{lineHeight:"1.6"}}>
-                    Focus on maintaining stroke length in the final portion of
-                    the race and improving wall speed during turns.
+                    Real SwimAI will upload the video to storage, process race footage,
+                    estimate splits, count strokes, evaluate turns, and generate personalized coaching feedback.
                   </p>
                 </div>
               </div>
