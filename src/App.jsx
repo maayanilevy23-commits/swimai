@@ -53,11 +53,12 @@ function App() {
     }
 
     const captureTimes = [
-      duration * 0.1,
-      duration * 0.3,
-      duration * 0.5,
-      duration * 0.7,
-      duration * 0.9,
+      duration * 0.08,
+      duration * 0.22,
+      duration * 0.4,
+      duration * 0.58,
+      duration * 0.76,
+      duration * 0.92,
     ];
 
     const capturedFrames = [];
@@ -77,7 +78,7 @@ function App() {
           capturedFrames.push({
             label: `Frame ${i + 1}`,
             time: time.toFixed(2),
-            image: canvas.toDataURL("image/jpeg", 0.8),
+            image: canvas.toDataURL("image/jpeg", 0.82),
           });
 
           video.removeEventListener("seeked", onSeeked);
@@ -93,75 +94,178 @@ function App() {
     setIsExtracting(false);
   };
 
-  const strokeTechnicalFeedback = {
-    Freestyle: [
-      "Maintain a longer catch phase before initiating the pull; avoid slipping water early.",
-      "Keep the head lower during breathing so the hips do not drop.",
-      "Drive rotation from the hips and shoulders instead of crossing the arm across the center line.",
-      "Keep kick compact; avoid excessive knee bend that creates drag.",
-      "Hold distance-per-stroke late in the race instead of relying only on faster tempo."
-    ],
-    Backstroke: [
-      "Keep the head still and avoid lifting the chin, which can drop the hips.",
-      "Improve shoulder rotation to create a deeper catch and stronger pull path.",
-      "Avoid crossing over on hand entry; enter closer to shoulder line.",
-      "Maintain hip height through the second half of the race.",
-      "Underwater breakout should stay tighter with stronger dolphin-kick rhythm."
-    ],
-    Breaststroke: [
-      "Improve pull-kick timing so the kick finishes into a tighter streamline.",
-      "Avoid lifting the head too high during the breath; this increases frontal drag.",
-      "Keep knees narrower during the kick recovery to reduce resistance.",
-      "Hold the glide line longer after the kick without pausing too long.",
-      "Pullout should finish with a cleaner transition into the first stroke."
-    ],
-    Butterfly: [
-      "Use a smoother first kick into the catch instead of forcing the upper body up.",
-      "Keep the breath lower and earlier to avoid hips dropping.",
-      "Maintain second-kick strength as the arms recover forward.",
-      "Avoid bending the knees too much during the kick; generate power from the hips.",
-      "Hold rhythm late in the race instead of shortening the front-end catch."
-    ]
+  const laneFeedback = {
+    1: {
+      title: "Lane 1 Review",
+      camera:
+        "Outside lane. Review accuracy depends heavily on whether the camera is angled toward lane 1 or centered on the pool. Adjacent-lane interference is lower, but wall-side distortion can make body-line judgment harder.",
+      focus:
+        "Best focus areas: breakout distance, body line against the lane rope, approach into turns, and whether the swimmer drifts toward the wall side of the lane.",
+      risk:
+        "Risk: if the camera is on the opposite side, elbow path, kick width, and breathing mechanics may be partially hidden."
+    },
+    2: {
+      title: "Lane 2 Review",
+      camera:
+        "Lane 2 usually gives better visibility than lane 1, but the outside angle can still make depth and underwater distance harder to judge.",
+      focus:
+        "Best focus areas: stroke alignment, lane-line stability, kick symmetry, and whether the swimmer maintains a straight path off the breakout.",
+      risk:
+        "Risk: adjacent swimmers can overlap during the middle of the race, especially during turns and breakouts."
+    },
+    3: {
+      title: "Lane 3 Review",
+      camera:
+        "Lane 3 is usually a strong review lane because the swimmer is close enough for body mechanics but still central enough to track through turns.",
+      focus:
+        "Best focus areas: early vertical forearm, hand entry position, kick timing, turn approach speed, and breathing disruption.",
+      risk:
+        "Risk: camera zoom and side angle may still affect exact underwater distance."
+    },
+    4: {
+      title: "Lane 4 Review",
+      camera:
+        "Lane 4 is one of the best lanes for review. The swimmer is typically central, easier to track, and less distorted by angle.",
+      focus:
+        "Best focus areas: start reaction, breakout timing, pull mechanics, tempo consistency, turn speed, and finish timing.",
+      risk:
+        "Risk: if the camera follows the field instead of the lane, tracking can still shift away during the race."
+    },
+    5: {
+      title: "Lane 5 Review",
+      camera:
+        "Lane 5 is also ideal for technical review. Center-lane visibility usually allows the clearest view of stroke rhythm, kick, underwater, and turns.",
+      focus:
+        "Best focus areas: body position, elbow angle during catch, kick amplitude, underwater breakout, wall contact, and late-race tempo decay.",
+      risk:
+        "Risk: center lanes often have nearby swimmers on both sides, so overlap can affect automated tracking later."
+    },
+    6: {
+      title: "Lane 6 Review",
+      camera:
+        "Lane 6 is usable for technical review but may start to show more side-angle distortion depending on camera position.",
+      focus:
+        "Best focus areas: pull path, breathing-side mechanics, lane-line drift, turn approach, and breakout line.",
+      risk:
+        "Risk: elbow and shoulder mechanics may look different depending on whether the camera is on the swimmer's breathing side."
+    },
+    7: {
+      title: "Lane 7 Review",
+      camera:
+        "Lane 7 is closer to the outside. Review should focus on large technical patterns rather than tiny joint-angle details unless the camera is close.",
+      focus:
+        "Best focus areas: kick timing, body-line stability, head position during breathing, turn rotation, and breakout quality.",
+      risk:
+        "Risk: underwater and elbow detail may be less reliable if the swimmer is far from the camera."
+    },
+    8: {
+      title: "Lane 8 Review",
+      camera:
+        "Outside lane. Tracking can be clean if the camera is on the same side, but difficult if the swimmer is far from the camera.",
+      focus:
+        "Best focus areas: start, breakout distance, straight-line swimming, finish timing, and major body-position changes.",
+      risk:
+        "Risk: detailed elbow, knee, and underwater analysis may require better zoom or a closer camera angle."
+    },
   };
 
-  const distanceTechnicalFeedback = {
-    50: [
-      "Reaction time and first 15 meters are critical; start mechanics should be a top priority.",
-      "Breakout must be aggressive but controlled; surfacing too early costs speed.",
-      "No pacing phase — the swimmer must hold maximum tempo with clean mechanics.",
-      "Finish should be timed without gliding into the wall."
-    ],
-    100: [
-      "The key risk is tempo decay after the first 50.",
-      "Second 50 should maintain stroke length, not just increase turnover.",
-      "Turn speed and breakout distance can decide the race.",
-      "Breathing pattern should stay controlled under fatigue."
-    ],
-    200: [
-      "Pacing should be controlled through the first 100 with no major technical breakdown.",
-      "Third 50 is usually where stroke length and body line start to fail.",
-      "Turns need to stay consistent; slow walls compound over the race.",
-      "Efficiency matters more than raw tempo."
-    ],
-    500: [
-      "Primary focus should be rhythm consistency and stroke economy.",
-      "Breathing pattern must stay stable to avoid late-race collapse.",
-      "Every turn should be repeatable and low-effort.",
-      "Avoid over-kicking early; save legs for the final 100."
-    ]
+  const strokeFeedback = {
+    Freestyle: {
+      title: "Freestyle Technical Feedback",
+      pull:
+        "Pull/catch: look for a high-elbow catch. If the elbow drops early, the swimmer will press down on the water instead of anchoring and pulling back.",
+      elbow:
+        "Elbow position: the elbow should stay higher than the wrist during the catch. A collapsed elbow reduces propulsion and usually increases stroke count.",
+      kick:
+        "Kick: kick should be compact from the hips. Excessive knee bend creates drag and can make the legs sink late in the race.",
+      underwater:
+        "Underwater/breakout: streamline should stay tight with no early head lift. The breakout should connect directly into the first stroke without a pause.",
+      breathing:
+        "Breathing: avoid lifting the head forward. Breath should happen through rotation, not by raising the head out of alignment."
+    },
+    Backstroke: {
+      title: "Backstroke Technical Feedback",
+      pull:
+        "Pull/catch: hand should enter cleanly and set up pressure quickly. A shallow catch usually leads to slipping water and slower tempo.",
+      elbow:
+        "Elbow/arm path: avoid crossing over behind the head. Entry should stay closer to the shoulder line to protect alignment and maximize pull.",
+      kick:
+        "Kick: hips should stay high with a steady flutter kick. Too much knee bend will break the surface and create drag.",
+      underwater:
+        "Underwater/breakout: dolphin kicks should stay narrow and connected. Breakout timing matters because surfacing too early wastes speed.",
+      breathing:
+        "Body line: head must remain still. Chin lift or head movement usually causes hip drop and tempo disruption."
+    },
+    Breaststroke: {
+      title: "Breaststroke Technical Feedback",
+      pull:
+        "Pull: hands should accelerate out and around, then recover quickly forward. Pulling too far back delays the kick and breaks timing.",
+      elbow:
+        "Elbow position: elbows should stay controlled during the in-sweep. If they drop too low, the swimmer loses leverage and rises too much.",
+      kick:
+        "Kick: knees should not open too wide. Wide knees create drag; the heels should recover efficiently and snap into a tight streamline.",
+      underwater:
+        "Underwater/pullout: pullout should be powerful but clean, with a fast transition into the first stroke. A late or weak kick reduces breakout speed.",
+      breathing:
+        "Timing: breath should fit naturally into the pull. Overlifting the head increases drag and delays the recovery."
+    },
+    Butterfly: {
+      title: "Butterfly Technical Feedback",
+      pull:
+        "Pull/catch: hands should establish pressure before the breath. If the swimmer lifts to breathe before the catch, the hips drop.",
+      elbow:
+        "Elbow/arm recovery: arms should recover low and relaxed over the water. Bent or tense recovery usually indicates fatigue or poor rhythm.",
+      kick:
+        "Kick: power should come from the hips, not excessive knee bend. Knees bending too much creates drag and disrupts rhythm.",
+      underwater:
+        "Underwater/breakout: dolphin kicks should build speed into the breakout. Surfacing flat or late can kill momentum.",
+      breathing:
+        "Breathing: breath should be low and quick. A high breath causes the chest to rise and hips to fall."
+    },
   };
 
-  const laneTechnicalFeedback = () => {
-    if (lane === "1" || lane === "8") {
-      return "Outside lane: review may be affected by camera angle. Best focus areas are breakout visibility, body line, and lane-relative movement.";
-    }
-
-    if (lane === "4" || lane === "5") {
-      return "Center lane: best visibility for technical review. This is ideal for analyzing tempo, body position, turns, and breakout timing.";
-    }
-
-    return "Middle lane: visibility should be usable, but adjacent swimmers may interfere with lane-specific tracking.";
+  const distanceFeedback = {
+    50: {
+      title: "50 Race Priorities",
+      start:
+        "Start/reaction: reaction time and first 15 meters are critical. The swimmer cannot afford a slow reaction, loose streamline, or passive breakout.",
+      pacing:
+        "Race model: no pacing phase. The goal is maximal speed while preserving enough technique to avoid spinning or shortening the stroke.",
+      turn:
+        "Turns/finish: if this is a 50 with a turn, wall contact and breakout must be aggressive. Finish should not include a glide into the wall."
+    },
+    100: {
+      title: "100 Race Priorities",
+      start:
+        "Start/reaction: start must be fast but controlled. A poor breakout can force the swimmer to overwork the first 25.",
+      pacing:
+        "Race model: the key issue is second-half efficiency. Look for stroke length loss, tempo decay, and breathing disruption after the 50.",
+      turn:
+        "Turns: the 50 turn is a major performance point. Slow rotation or weak push-off can cost more than a small stroke flaw."
+    },
+    200: {
+      title: "200 Race Priorities",
+      start:
+        "Start/reaction: start matters, but the swimmer should not over-sprint the first 25 at the cost of body position.",
+      pacing:
+        "Race model: pacing discipline is critical. The third 50 often reveals whether the swimmer can hold technique under fatigue.",
+      turn:
+        "Turns: repeatable walls matter. Each turn should preserve speed with controlled breakout timing."
+    },
+    500: {
+      title: "500 Race Priorities",
+      start:
+        "Start/reaction: start should be efficient, not reckless. The goal is to enter the race rhythm quickly.",
+      pacing:
+        "Race model: focus on stroke economy, breathing rhythm, and minimizing technical breakdown over the back half.",
+      turn:
+        "Turns: small losses add up. Turn speed, push-off angle, and breakout consistency are major factors across the race."
+    },
   };
+
+  const currentLane = laneFeedback[lane];
+  const currentStroke = strokeFeedback[stroke];
+  const currentDistance = distanceFeedback[distance];
 
   return (
     <div style={{
@@ -186,7 +290,7 @@ function App() {
             padding: "15px",
             borderRadius: "10px"
           }}>
-            Prototype mode: video frames are real. Feedback is technical sample logic until AI is connected.
+            Prototype mode: frames are real. Technical feedback changes by lane, stroke, and distance.
           </div>
         </div>
 
@@ -451,31 +555,36 @@ function App() {
                   <h1 style={{ color: "#38bdf8" }}>Technical Review</h1>
                 </div>
 
+                <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
+                  <h3>{currentLane.title}</h3>
+                  <p><strong>Camera:</strong> {currentLane.camera}</p>
+                  <p><strong>Lane focus:</strong> {currentLane.focus}</p>
+                  <p><strong>Tracking risk:</strong> {currentLane.risk}</p>
+                </div>
+
                 <div style={{ background: "#052e2b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Stroke-Specific Technical Focus</h3>
-                  {strokeTechnicalFeedback[stroke].map((item, index) => (
-                    <p key={index}>• {item}</p>
-                  ))}
+                  <h3>{currentStroke.title}</h3>
+                  <p><strong>Pull:</strong> {currentStroke.pull}</p>
+                  <p><strong>Elbow / arm path:</strong> {currentStroke.elbow}</p>
+                  <p><strong>Kick:</strong> {currentStroke.kick}</p>
+                  <p><strong>Underwater / breakout:</strong> {currentStroke.underwater}</p>
+                  <p><strong>Body / breathing:</strong> {currentStroke.breathing}</p>
                 </div>
 
-                <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Distance-Specific Race Priorities</h3>
-                  {distanceTechnicalFeedback[distance].map((item, index) => (
-                    <p key={index}>• {item}</p>
-                  ))}
-                </div>
-
-                <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Lane / Camera Context</h3>
-                  <p>{laneTechnicalFeedback()}</p>
+                <div style={{ background: "#1e1b4b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
+                  <h3>{currentDistance.title}</h3>
+                  <p><strong>Start / reaction:</strong> {currentDistance.start}</p>
+                  <p><strong>Race model:</strong> {currentDistance.pacing}</p>
+                  <p><strong>Turns / finish:</strong> {currentDistance.turn}</p>
                 </div>
 
                 <div style={{ background: "#3b1d0b", padding: "18px", borderRadius: "12px" }}>
                   <h3>Important</h3>
                   <p>
-                    These are technical sample recommendations based on stroke, distance, and lane.
-                    The extracted frames are real. The next step is connecting AI vision so the feedback
-                    comes directly from the swimmer's actual body position and race execution.
+                    These technical notes change based on lane, stroke, and distance.
+                    They are not yet visual AI judgments. To detect a truly bent elbow,
+                    knee position, underwater distance, kick timing, or breakout quality
+                    from the uploaded video, the next step is connecting AI vision to the extracted frames.
                   </p>
                 </div>
               </>
