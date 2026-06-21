@@ -1,4 +1,4 @@
-  import { useState } from "react";
+import { useState } from "react";
 
 function App() {
   const [showResult, setShowResult] = useState(false);
@@ -9,29 +9,42 @@ function App() {
   const [swimmerName, setSwimmerName] = useState("");
   const [lane, setLane] = useState("5");
 
+  const handleVideo = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      alert("Please upload a video file.");
+      return;
+    }
+
+    setFileName(file.name);
+    setVideoUrl(URL.createObjectURL(file));
+    setShowResult(false);
+  };
+
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(135deg, #020617, #0f172a, #075985)",
+      background: "linear-gradient(135deg,#020617,#0f172a,#075985)",
       color: "white",
       fontFamily: "Arial",
       padding: "40px"
     }}>
-      <div style={{maxWidth: "1100px", margin: "0 auto"}}>
-        <div style={{textAlign: "center", marginBottom: "40px"}}>
-          <h1 style={{fontSize: "56px", marginBottom: "10px"}}>SwimAI</h1>
-          <p style={{color:"#cbd5e1", fontSize:"20px"}}>
-            Upload race video, identify the swimmer, and generate a structured race review.
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: "40px" }}>
+          <h1 style={{ fontSize: "60px", marginBottom: "10px" }}>SwimAI</h1>
+          <p style={{ fontSize: "20px", color: "#cbd5e1" }}>
+            Upload race videos and generate a structured swim race review.
           </p>
-          <p style={{
-            color:"#fbbf24",
-            background:"#422006",
-            padding:"12px",
-            borderRadius:"10px",
-            marginTop:"20px"
+          <div style={{
+            marginTop: "20px",
+            background: "#5b2c00",
+            color: "#fbbf24",
+            padding: "15px",
+            borderRadius: "10px"
           }}>
-            Prototype mode: this version previews video and generates sample feedback.
-          </p>
+            Prototype mode: this version previews video and shows sample feedback.
+          </div>
         </div>
 
         <div style={{
@@ -46,64 +59,91 @@ function App() {
           }}>
             <h2>Race Details</h2>
 
-            <label>Swimmer Name</label>
+            <p>Swimmer Name</p>
             <input
               type="text"
               placeholder="Example: Koren Levy"
               value={swimmerName}
-              onChange={(e) => {
-                setSwimmerName(e.target.value);
-                setShowResult(false);
-              }}
+              onChange={(e) => setSwimmerName(e.target.value)}
               style={{
                 width: "100%",
                 padding: "12px",
-                marginTop: "8px",
-                marginBottom: "18px",
                 borderRadius: "8px",
-                border: "none"
+                border: "none",
+                marginBottom: "20px"
               }}
             />
 
-            <label>Lane</label>
+            <p>Lane</p>
             <select
               value={lane}
-              onChange={(e) => {
-                setLane(e.target.value);
-                setShowResult(false);
-              }}
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginTop: "8px",
-                marginBottom: "18px",
-                borderRadius: "8px"
-              }}
+              onChange={(e) => setLane(e.target.value)}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
             >
-              <option>1</option>
-              <option>2</option>
-              <option>3</option>
-              <option>4</option>
-              <option>5</option>
-              <option>6</option>
-              <option>7</option>
-              <option>8</option>
+              {[1,2,3,4,5,6,7,8].map((n) => <option key={n}>{n}</option>)}
             </select>
 
-            <label>Stroke</label>
-            <select
-              value={stroke}
-              onChange={(e) => {
-                setStroke(e.target.value);
-                setShowResult(false);
+            <h2>Upload Race Video</h2>
+
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleVideo(e.dataTransfer.files[0]);
+              }}
+              onPaste={(e) => {
+                const file = e.clipboardData.files[0];
+                handleVideo(file);
               }}
               style={{
-                width: "100%",
-                padding: "12px",
-                marginTop: "8px",
-                marginBottom: "18px",
-                borderRadius: "8px"
+                border: "2px dashed #38bdf8",
+                borderRadius: "14px",
+                padding: "30px",
+                textAlign: "center",
+                background: "#0f172a",
+                marginBottom: "20px"
               }}
+            >
+              <p style={{ fontSize: "22px" }}>Drop or paste a swim video here</p>
+              <p style={{ color: "#94a3b8" }}>
+                Or choose a file from your computer
+              </p>
+
+              <input
+                type="file"
+                accept="video/*,.mov,.mp4,.m4v"
+                onChange={(e) => handleVideo(e.target.files[0])}
+              />
+
+              {fileName && (
+                <p style={{ marginTop: "15px", color: "#38bdf8" }}>
+                  Selected video: {fileName}
+                </p>
+              )}
+            </div>
+
+            {videoUrl && (
+              <>
+                <h3>Video Preview</h3>
+                <video
+                  src={videoUrl}
+                  controls
+                  playsInline
+                  style={{
+                    width: "100%",
+                    borderRadius: "12px",
+                    marginBottom: "20px",
+                    background: "black"
+                  }}
+                />
+              </>
+            )}
+
+            <p>Stroke</p>
+            <select
+              value={stroke}
+              onChange={(e) => setStroke(e.target.value)}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
             >
               <option>Freestyle</option>
               <option>Backstroke</option>
@@ -111,20 +151,11 @@ function App() {
               <option>Butterfly</option>
             </select>
 
-            <label>Distance</label>
+            <p>Distance</p>
             <select
               value={distance}
-              onChange={(e) => {
-                setDistance(e.target.value);
-                setShowResult(false);
-              }}
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginTop: "8px",
-                marginBottom: "24px",
-                borderRadius: "8px"
-              }}
+              onChange={(e) => setDistance(e.target.value)}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
             >
               <option>50</option>
               <option>100</option>
@@ -132,68 +163,19 @@ function App() {
               <option>500</option>
             </select>
 
-            <h2>Upload Video</h2>
-
-            <div style={{
-              border: "2px dashed #38bdf8",
-              borderRadius: "14px",
-              padding: "30px",
-              textAlign: "center",
-              marginBottom: "20px",
-              background: "#0f172a"
-            }}>
-              <p style={{fontSize:"18px"}}>Select a swim race video</p>
-              <p style={{color:"#94a3b8"}}>
-                Works with videos from computer, iPhone, or Photos library
-              </p>
-
-              <input
-                type="file"
-                accept="video/*"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    setFileName(file.name);
-                    setVideoUrl(URL.createObjectURL(file));
-                    setShowResult(false);
-                  }
-                }}
-              />
-
-              {fileName && (
-                <p style={{color:"#38bdf8", marginTop:"15px"}}>
-                  Selected video: {fileName}
-                </p>
-              )}
-            </div>
-
-            {videoUrl && (
-              <div style={{marginBottom: "24px"}}>
-                <h3>Video Preview</h3>
-                <video
-                  src={videoUrl}
-                  controls
-                  style={{
-                    width: "100%",
-                    borderRadius: "12px",
-                    background: "black"
-                  }}
-                />
-              </div>
-            )}
-
             <button
+              onClick={() => setShowResult(true)}
               style={{
                 width: "100%",
                 padding: "15px",
                 background: "#38bdf8",
+                color: "white",
                 border: "none",
                 borderRadius: "10px",
                 cursor: "pointer",
-                fontWeight: "bold",
-                fontSize: "16px"
+                fontSize: "18px",
+                fontWeight: "bold"
               }}
-              onClick={() => setShowResult(true)}
             >
               Generate Sample Race Review
             </button>
@@ -204,64 +186,60 @@ function App() {
             padding: "30px",
             borderRadius: "18px"
           }}>
-            <h2>SwimAI Race Report</h2>
+            <h2>SwimAI Report</h2>
 
             {!showResult && (
-              <p style={{color:"#94a3b8", lineHeight:"1.6"}}>
-                Enter swimmer details, upload a video, and generate a structured sample race report.
+              <p style={{ color: "#94a3b8", fontSize: "20px" }}>
+                Enter swimmer information, upload a race video, and generate a sample race review.
               </p>
             )}
 
             {showResult && (
-              <div>
+              <>
                 <div style={{
                   background: "#0f172a",
                   padding: "20px",
-                  borderRadius: "14px",
+                  borderRadius: "12px",
                   marginBottom: "20px"
                 }}>
-                  <p><strong>Swimmer:</strong> {swimmerName || "Not entered"}</p>
+                  <p><strong>Swimmer:</strong> {swimmerName || "Not Entered"}</p>
                   <p><strong>Event:</strong> {distance} {stroke}</p>
                   <p><strong>Lane:</strong> {lane}</p>
-                  <p><strong>Video:</strong> {fileName || "No video selected"}</p>
-                  <h1 style={{color:"#38bdf8"}}>82/100</h1>
-                  <p style={{color:"#cbd5e1"}}>Sample Race Score</p>
+                  <p><strong>Video:</strong> {fileName || "No Video Uploaded"}</p>
+                  <h1 style={{ color: "#38bdf8" }}>82 / 100</h1>
+                  <p>Sample Race Score</p>
                 </div>
 
-                <div style={{background:"#052e2b", padding:"18px", borderRadius:"12px", marginBottom:"16px"}}>
+                <div style={{ background: "#052e2b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
                   <h3>Race Summary</h3>
-                  <p>
-                    {swimmerName || "The swimmer"} shows a solid overall race pattern with good early tempo
-                    and a controlled body line. The main opportunity is maintaining efficiency late in the race.
-                  </p>
+                  <p>{swimmerName || "The swimmer"} demonstrated a strong first half with consistent tempo and good body position.</p>
                 </div>
 
-                <div style={{background:"#0f172a", padding:"18px", borderRadius:"12px", marginBottom:"16px"}}>
+                <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
                   <h3>Start & Breakout</h3>
-                  <p>✅ Strong push-off and early acceleration.</p>
-                  <p>⚠️ Breakout timing should be reviewed once real video analysis is added.</p>
+                  <p>✅ Strong push-off from the start.</p>
+                  <p>⚠️ Breakout timing will be evaluated when full video AI is enabled.</p>
                 </div>
 
-                <div style={{background:"#0f172a", padding:"18px", borderRadius:"12px", marginBottom:"16px"}}>
+                <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
                   <h3>Stroke Analysis</h3>
-                  <p>✅ Consistent stroke rhythm through the first half.</p>
-                  <p>⚠️ Stroke length appears to shorten late in the race.</p>
+                  <p>✅ Good early-race rhythm.</p>
+                  <p>⚠️ Stroke length appears to decrease late in the race.</p>
                 </div>
 
-                <div style={{background:"#3b1d0b", padding:"18px", borderRadius:"12px", marginBottom:"16px"}}>
+                <div style={{ background: "#3b1d0b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
                   <h3>Turn Analysis</h3>
-                  <p>⚠️ Turn rotation and wall speed should be a focus area.</p>
-                  <p>⚠️ Future video AI will estimate time lost or gained at each wall.</p>
+                  <p>⚠️ Future versions will estimate turn efficiency and wall speed automatically.</p>
                 </div>
 
-                <div style={{background:"#0f172a", padding:"18px", borderRadius:"12px"}}>
+                <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px" }}>
                   <h3>Coach Recommendation</h3>
-                  <p style={{lineHeight:"1.6"}}>
-                    Focus practice on maintaining stroke length under fatigue, faster wall transitions,
-                    and consistent breakout timing.
+                  <p>
+                    Focus on maintaining stroke length under fatigue, improving wall transitions,
+                    and preserving tempo through the final section of the race.
                   </p>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
