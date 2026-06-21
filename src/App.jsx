@@ -93,48 +93,74 @@ function App() {
     setIsExtracting(false);
   };
 
-  const getTechnicalReport = () => {
-    if (distance === "50") {
-      return "For a 50, the highest-value review points are start quality, breakout timing, first-15m velocity, tempo stability, and finish mechanics. Any delay in breakout or loss of tempo has a large impact because there is no time to recover.";
-    }
-
-    if (distance === "100") {
-      return "For a 100, review whether the swimmer maintains distance-per-stroke after the first 50. Key indicators are tempo decay, breath timing, turn speed, breakout distance, and whether stroke length shortens under fatigue.";
-    }
-
-    if (distance === "200") {
-      return "For a 200, evaluate pacing discipline across all four 50s. The report should look for controlled early speed, stable stroke count, efficient turns, and limited technical breakdown in the third and fourth 50.";
-    }
-
-    return "For a 500, the key technical markers are sustainable tempo, consistent breathing rhythm, stroke economy, turn repeatability, and minimizing efficiency loss over the back half of the race.";
+  const strokeTechnicalFeedback = {
+    Freestyle: [
+      "Maintain a longer catch phase before initiating the pull; avoid slipping water early.",
+      "Keep the head lower during breathing so the hips do not drop.",
+      "Drive rotation from the hips and shoulders instead of crossing the arm across the center line.",
+      "Keep kick compact; avoid excessive knee bend that creates drag.",
+      "Hold distance-per-stroke late in the race instead of relying only on faster tempo."
+    ],
+    Backstroke: [
+      "Keep the head still and avoid lifting the chin, which can drop the hips.",
+      "Improve shoulder rotation to create a deeper catch and stronger pull path.",
+      "Avoid crossing over on hand entry; enter closer to shoulder line.",
+      "Maintain hip height through the second half of the race.",
+      "Underwater breakout should stay tighter with stronger dolphin-kick rhythm."
+    ],
+    Breaststroke: [
+      "Improve pull-kick timing so the kick finishes into a tighter streamline.",
+      "Avoid lifting the head too high during the breath; this increases frontal drag.",
+      "Keep knees narrower during the kick recovery to reduce resistance.",
+      "Hold the glide line longer after the kick without pausing too long.",
+      "Pullout should finish with a cleaner transition into the first stroke."
+    ],
+    Butterfly: [
+      "Use a smoother first kick into the catch instead of forcing the upper body up.",
+      "Keep the breath lower and earlier to avoid hips dropping.",
+      "Maintain second-kick strength as the arms recover forward.",
+      "Avoid bending the knees too much during the kick; generate power from the hips.",
+      "Hold rhythm late in the race instead of shortening the front-end catch."
+    ]
   };
 
-  const getStrokeReport = () => {
-    if (stroke === "Freestyle") {
-      return "Freestyle focus: body rotation, breathing disruption, distance-per-stroke, catch timing, kick consistency, and whether the head position rises during breathing.";
-    }
-
-    if (stroke === "Backstroke") {
-      return "Backstroke focus: head stability, hip height, shoulder rotation, hand entry alignment, underwater breakout timing, and whether the swimmer maintains rhythm without crossing over.";
-    }
-
-    if (stroke === "Breaststroke") {
-      return "Breaststroke focus: pull-kick timing, streamline after each kick, glide length, head lift, pullout execution, and whether the swimmer rushes the recovery phase.";
-    }
-
-    return "Butterfly focus: timing of the breath, second-kick strength, body undulation, hip position, arm recovery fatigue, and whether the swimmer loses rhythm late in the race.";
+  const distanceTechnicalFeedback = {
+    50: [
+      "Reaction time and first 15 meters are critical; start mechanics should be a top priority.",
+      "Breakout must be aggressive but controlled; surfacing too early costs speed.",
+      "No pacing phase — the swimmer must hold maximum tempo with clean mechanics.",
+      "Finish should be timed without gliding into the wall."
+    ],
+    100: [
+      "The key risk is tempo decay after the first 50.",
+      "Second 50 should maintain stroke length, not just increase turnover.",
+      "Turn speed and breakout distance can decide the race.",
+      "Breathing pattern should stay controlled under fatigue."
+    ],
+    200: [
+      "Pacing should be controlled through the first 100 with no major technical breakdown.",
+      "Third 50 is usually where stroke length and body line start to fail.",
+      "Turns need to stay consistent; slow walls compound over the race.",
+      "Efficiency matters more than raw tempo."
+    ],
+    500: [
+      "Primary focus should be rhythm consistency and stroke economy.",
+      "Breathing pattern must stay stable to avoid late-race collapse.",
+      "Every turn should be repeatable and low-effort.",
+      "Avoid over-kicking early; save legs for the final 100."
+    ]
   };
 
-  const getLaneReport = () => {
+  const laneTechnicalFeedback = () => {
     if (lane === "1" || lane === "8") {
-      return "Outside-lane note: camera angle may make swimmer tracking harder. For real AI analysis, the model will need clear lane selection and enough side visibility to avoid confusing adjacent swimmers.";
+      return "Outside lane: review may be affected by camera angle. Best focus areas are breakout visibility, body line, and lane-relative movement.";
     }
 
     if (lane === "4" || lane === "5") {
-      return "Center-lane note: this is usually the best setup for video review because the swimmer is more likely to stay visible and less distorted by angle.";
+      return "Center lane: best visibility for technical review. This is ideal for analyzing tempo, body position, turns, and breakout timing.";
     }
 
-    return "Mid-lane note: visibility should be usable, but review quality depends heavily on camera position, zoom, and whether adjacent swimmers overlap the selected lane.";
+    return "Middle lane: visibility should be usable, but adjacent swimmers may interfere with lane-specific tracking.";
   };
 
   return (
@@ -150,7 +176,7 @@ function App() {
           <h1 style={{ fontSize: "60px", marginBottom: "10px" }}>SwimAI</h1>
 
           <p style={{ fontSize: "20px", color: "#cbd5e1" }}>
-            Upload race video, preview it, extract real frames, and prepare for AI video analysis.
+            Upload race video, extract frames, and generate technical swim feedback.
           </p>
 
           <div style={{
@@ -160,7 +186,7 @@ function App() {
             padding: "15px",
             borderRadius: "10px"
           }}>
-            Prototype mode: frames are extracted from the actual video. Feedback is still sample logic until AI is connected.
+            Prototype mode: video frames are real. Feedback is technical sample logic until AI is connected.
           </div>
         </div>
 
@@ -179,7 +205,7 @@ function App() {
             <p>Swimmer Name</p>
             <input
               type="text"
-              placeholder="Example: Koren Levy"
+              placeholder="Name"
               value={swimmerName}
               onChange={(e) => {
                 setSwimmerName(e.target.value);
@@ -358,7 +384,7 @@ function App() {
                 fontWeight: "bold"
               }}
             >
-              Generate Video-Informed Sample Report
+              Generate Technical Race Feedback
             </button>
           </div>
 
@@ -369,12 +395,6 @@ function App() {
           }}>
             <h2>SwimAI Report</h2>
 
-            {!showResult && (
-              <p style={{ color: "#94a3b8", fontSize: "20px", lineHeight: "1.6" }}>
-                Upload a video, extract frames, and generate a technical sample report.
-              </p>
-            )}
-
             {frames.length > 0 && (
               <div style={{
                 background: "#0f172a",
@@ -383,9 +403,6 @@ function App() {
                 marginBottom: "20px"
               }}>
                 <h3>Extracted Video Frames</h3>
-                <p style={{ color: "#94a3b8" }}>
-                  These images are captured from the actual uploaded video.
-                </p>
 
                 <div style={{
                   display: "grid",
@@ -412,6 +429,12 @@ function App() {
               </div>
             )}
 
+            {!showResult && (
+              <p style={{ color: "#94a3b8", fontSize: "20px", lineHeight: "1.6" }}>
+                Upload a video, extract frames, and generate technical feedback.
+              </p>
+            )}
+
             {showResult && (
               <>
                 <div style={{
@@ -425,37 +448,34 @@ function App() {
                   <p><strong>Lane:</strong> {lane}</p>
                   <p><strong>Video:</strong> {fileName || "No Video Uploaded"}</p>
                   <p><strong>Frames Extracted:</strong> {frames.length}</p>
-                  <h1 style={{ color: "#38bdf8" }}>Video Pipeline Ready</h1>
+                  <h1 style={{ color: "#38bdf8" }}>Technical Review</h1>
                 </div>
 
                 <div style={{ background: "#052e2b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Video Processing Status</h3>
-                  <p>
-                    SwimAI successfully loaded the video, read the video metadata,
-                    and extracted key frames from the actual uploaded file.
-                  </p>
+                  <h3>Stroke-Specific Technical Focus</h3>
+                  {strokeTechnicalFeedback[stroke].map((item, index) => (
+                    <p key={index}>• {item}</p>
+                  ))}
                 </div>
 
                 <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Distance-Specific Review Logic</h3>
-                  <p>{getTechnicalReport()}</p>
-                </div>
-
-                <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Stroke-Specific Review Logic</h3>
-                  <p>{getStrokeReport()}</p>
+                  <h3>Distance-Specific Race Priorities</h3>
+                  {distanceTechnicalFeedback[distance].map((item, index) => (
+                    <p key={index}>• {item}</p>
+                  ))}
                 </div>
 
                 <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
                   <h3>Lane / Camera Context</h3>
-                  <p>{getLaneReport()}</p>
+                  <p>{laneTechnicalFeedback()}</p>
                 </div>
 
                 <div style={{ background: "#3b1d0b", padding: "18px", borderRadius: "12px" }}>
-                  <h3>Next Real AI Step</h3>
+                  <h3>Important</h3>
                   <p>
-                    The next step is sending these extracted frames to an AI vision model.
-                    That is where feedback will start coming directly from what the swimmer is doing in the video.
+                    These are technical sample recommendations based on stroke, distance, and lane.
+                    The extracted frames are real. The next step is connecting AI vision so the feedback
+                    comes directly from the swimmer's actual body position and race execution.
                   </p>
                 </div>
               </>
