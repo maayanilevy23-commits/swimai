@@ -1,254 +1,147 @@
 import { useState, useRef } from "react";
 
 function App() {
-  const [showResult, setShowResult] = useState(false);
   const [stroke, setStroke] = useState("Freestyle");
   const [distance, setDistance] = useState("100");
-  const [fileName, setFileName] = useState("");
-  const [fileSize, setFileSize] = useState("");
-  const [fileType, setFileType] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [videoDurationSeconds, setVideoDurationSeconds] = useState(null);
   const [swimmerName, setSwimmerName] = useState("");
   const [lane, setLane] = useState("5");
-  const [frames, setFrames] = useState([]);
-  const [isExtracting, setIsExtracting] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [markers, setMarkers] = useState({});
+  const [showResult, setShowResult] = useState(false);
 
   const videoRef = useRef(null);
 
   const handleVideo = (file) => {
     if (!file) return;
-
     if (!file.type.startsWith("video/")) {
       alert("Please upload a video file.");
       return;
     }
 
     setFileName(file.name);
-    setFileSize((file.size / (1024 * 1024)).toFixed(2) + " MB");
-    setFileType(file.type || "Unknown video type");
     setVideoUrl(URL.createObjectURL(file));
-    setVideoDurationSeconds(null);
-    setFrames([]);
+    setMarkers({});
     setShowResult(false);
   };
 
-  const extractFrames = async () => {
+  const markTime = (label) => {
     const video = videoRef.current;
-
-    if (!video || !videoUrl) {
-      alert("Please upload a video first.");
+    if (!video) {
+      alert("Upload a video first.");
       return;
     }
 
-    setIsExtracting(true);
-    setFrames([]);
+    setMarkers({
+      ...markers,
+      [label]: video.currentTime,
+    });
 
-    const duration = video.duration;
-
-    if (!duration || Number.isNaN(duration)) {
-      alert("Video is still loading. Wait a second and try again.");
-      setIsExtracting(false);
-      return;
-    }
-
-    const captureTimes = [
-      duration * 0.08,
-      duration * 0.22,
-      duration * 0.4,
-      duration * 0.58,
-      duration * 0.76,
-      duration * 0.92,
-    ];
-
-    const capturedFrames = [];
-
-    for (let i = 0; i < captureTimes.length; i++) {
-      const time = captureTimes[i];
-
-      await new Promise((resolve) => {
-        const onSeeked = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          capturedFrames.push({
-            label: `Frame ${i + 1}`,
-            time: time.toFixed(2),
-            image: canvas.toDataURL("image/jpeg", 0.82),
-          });
-
-          video.removeEventListener("seeked", onSeeked);
-          resolve();
-        };
-
-        video.addEventListener("seeked", onSeeked);
-        video.currentTime = time;
-      });
-    }
-
-    setFrames(capturedFrames);
-    setIsExtracting(false);
-  };
-
-  const getEstimatedSplits = () => {
-    if (!videoDurationSeconds) return null;
-
-    const total = videoDurationSeconds;
-
-    if (distance === "50") {
-      return {
-        split15: total * 0.28,
-        split35: total * 0.68,
-        split50: total,
-        finalTime: total,
-      };
-    }
-
-    if (distance === "100") {
-      return {
-        split15: total * 0.12,
-        split35: total * 0.30,
-        split50: total * 0.47,
-        split75: total * 0.73,
-        finalTime: total,
-      };
-    }
-
-    if (distance === "200") {
-      return {
-        split15: total * 0.07,
-        split35: total * 0.16,
-        split50: total * 0.24,
-        split75: total * 0.37,
-        split100: total * 0.50,
-        split150: total * 0.76,
-        finalTime: total,
-      };
-    }
-
-    return {
-      split15: total * 0.03,
-      split35: total * 0.07,
-      split50: total * 0.10,
-      split100: total * 0.20,
-      split250: total * 0.50,
-      finalTime: total,
-    };
+    setShowResult(false);
   };
 
   const formatTime = (seconds) => {
-    if (!seconds && seconds !== 0) return "—";
-
+    if (seconds === undefined || seconds === null) return "—";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-
-    if (mins > 0) {
-      return `${mins}:${secs.toFixed(2).padStart(5, "0")}`;
-    }
-
-    return secs.toFixed(2);
+    return mins > 0 ? `${mins}:${secs.toFixed(2).padStart(5, "0")}` : secs.toFixed(2);
   };
 
-  const getSplitFeedback = () => {
-    const splits = getEstimatedSplits();
+  const segment = (from, to) => {
+    if (markers[from] === undefined || markers[to] === undefined) return null;
+    return markers[to] - markers[from];
+  };
 
-    if (!splits) {
-      return ["Upload a video so SwimAI can estimate splits from the video duration."];
-    }
-
+  const getSplitNotes = () => {
     const notes = [];
 
-    notes.push(`Estimated 15m: ${formatTime(splits.split15)}. This represents start, streamline, underwater speed, and breakout timing.`);
-    notes.push(`Estimated 35m: ${formatTime(splits.split35)}. This helps estimate early surface speed after the breakout.`);
+    const startTo15 = segment("Start", "15m");
+    const fifteenTo35 = segment("15m", "35m");
+    const thirtyFiveTo50 = segment("35m", "50m");
+    const fiftyTo75 = segment("50m", "75m");
+    const seventyFiveToFinish = segment("75m", "Finish");
+    const first50 = segment("Start", "50m");
+    const second50 = segment("50m", "Finish");
 
-    if (distance === "50") {
-      notes.push(`Estimated finish: ${formatTime(splits.finalTime)}.`);
-      notes.push("For a 50, the highest-priority review areas are reaction, breakout, tempo, kick speed, and no glide into the wall.");
+    if (startTo15 !== null) {
+      notes.push(`Start to 15m: ${formatTime(startTo15)} — measures reaction, streamline, underwater speed, and breakout timing.`);
     }
 
-    if (distance === "100") {
-      const first50 = splits.split50;
-      const second50 = splits.finalTime - splits.split50;
-      const dropOff = second50 - first50;
+    if (fifteenTo35 !== null) {
+      notes.push(`15m to 35m: ${formatTime(fifteenTo35)} — measures early surface speed after breakout.`);
+    }
 
-      notes.push(`Estimated 50m split: ${formatTime(first50)}.`);
-      notes.push(`Estimated 75m split: ${formatTime(splits.split75)}.`);
-      notes.push(`Estimated second 50: ${formatTime(second50)}.`);
-      notes.push(`Estimated drop-off: ${dropOff >= 0 ? "+" : ""}${dropOff.toFixed(2)} seconds.`);
+    if (thirtyFiveTo50 !== null) {
+      notes.push(`35m to 50m: ${formatTime(thirtyFiveTo50)} — shows how well speed is held into the first wall.`);
+    }
+
+    if (fiftyTo75 !== null) {
+      notes.push(`50m to 75m: ${formatTime(fiftyTo75)} — evaluates turn speed, breakout, and early second-half tempo.`);
+    }
+
+    if (seventyFiveToFinish !== null) {
+      notes.push(`75m to Finish: ${formatTime(seventyFiveToFinish)} — measures late-race fatigue, kick strength, and finish timing.`);
+    }
+
+    if (first50 !== null && second50 !== null) {
+      const dropOff = second50 - first50;
+      notes.push(`First 50: ${formatTime(first50)}.`);
+      notes.push(`Second 50: ${formatTime(second50)}.`);
+      notes.push(`Drop-off: ${dropOff >= 0 ? "+" : ""}${dropOff.toFixed(2)} seconds.`);
 
       if (dropOff > 3) {
-        notes.push("Large estimated fade. Focus on holding stroke length, kick pressure, and turn speed after the 50.");
+        notes.push("Large fade detected. Focus on maintaining stroke length, kick pressure, and wall speed after the 50.");
       } else if (dropOff > 1.5) {
-        notes.push("Moderate estimated fade. Main focus should be maintaining tempo without shortening the pull.");
+        notes.push("Moderate fade detected. Focus on holding distance-per-stroke and tempo through the final 25.");
       } else {
-        notes.push("Estimated pacing looks controlled. Focus shifts to breakout quality and small technical details.");
+        notes.push("Pacing profile looks strong. The swimmer held the second half well.");
       }
     }
 
-    if (distance === "200") {
-      notes.push(`Estimated 50m: ${formatTime(splits.split50)}.`);
-      notes.push(`Estimated 100m: ${formatTime(splits.split100)}.`);
-      notes.push(`Estimated 150m: ${formatTime(splits.split150)}.`);
-      notes.push("For a 200, the third 50 is usually where stroke length, body line, and tempo discipline start to break down.");
-    }
-
-    if (distance === "500") {
-      notes.push(`Estimated 50m: ${formatTime(splits.split50)}.`);
-      notes.push(`Estimated 100m: ${formatTime(splits.split100)}.`);
-      notes.push(`Estimated 250m: ${formatTime(splits.split250)}.`);
-      notes.push("For a 500, the key indicators are repeatable turns, stable breathing rhythm, and avoiding excessive kick fatigue early.");
+    if (notes.length === 0) {
+      notes.push("Use the video marker buttons to create split-based feedback.");
     }
 
     return notes;
   };
 
-  const laneFeedback = {
-    1: "Lane 1: outside lane. Focus on straight-line swimming, avoiding drift toward the wall side, and maintaining clean breakout visibility.",
-    2: "Lane 2: slight outside angle. Review kick width, lane-line stability, and whether the swimmer holds a direct breakout line.",
-    3: "Lane 3: good review lane. Focus on hand entry, elbow position during catch, breathing mechanics, and turn approach speed.",
-    4: "Lane 4: center lane. Best for start, breakout, stroke tempo, pull path, kick rhythm, and turn-speed review.",
-    5: "Lane 5: center lane. Strong visibility for body position, elbow angle, kick amplitude, underwater timing, and late-race tempo drop.",
-    6: "Lane 6: mid-outside lane. Review breathing-side mechanics, elbow path, lane drift, and breakout line.",
-    7: "Lane 7: outside-biased lane. Focus on bigger technical patterns: body line, kick timing, head position, and wall speed.",
-    8: "Lane 8: outside lane. Best reviewed for start, breakout distance, straight-line swimming, finish timing, and major body-position changes.",
-  };
-
   const strokeFeedback = {
     Freestyle: [
-      "Elbow/catch: keep the elbow higher than the wrist during the catch. A dropped elbow reduces pull power.",
-      "Pull: anchor the hand before pulling back. Avoid pressing down on the water.",
-      "Kick: kick should be compact from the hips. Excessive knee bend creates drag.",
-      "Underwater: tight streamline with no early head lift. Breakout should connect directly into the first stroke.",
-      "Breathing: rotate to breathe instead of lifting the head forward.",
+      "High-elbow catch: avoid dropping the elbow early in the pull.",
+      "Kick should stay compact from the hips; excessive knee bend creates drag.",
+      "Breakout should connect directly into the first stroke with no pause.",
+      "Breathing should happen through rotation, not head lift."
     ],
     Backstroke: [
-      "Head position: keep the head still. Chin lift drops the hips.",
-      "Entry: avoid crossing over behind the head. Enter closer to shoulder line.",
-      "Kick: steady flutter kick with high hips and limited knee bend.",
-      "Underwater: narrow dolphin kicks with clean breakout timing.",
-      "Pull: set pressure early instead of slipping through the catch.",
+      "Head should stay still; chin lift can drop the hips.",
+      "Avoid crossing over on hand entry.",
+      "Underwater dolphin kicks should stay narrow and fast.",
+      "Kick should remain steady without excessive knee bend."
     ],
     Breaststroke: [
-      "Kick: keep knees narrower during recovery. Wide knees create drag.",
-      "Timing: kick should finish into a tight streamline.",
-      "Pull: do not pull too far back; it delays recovery and breaks rhythm.",
-      "Head: avoid lifting too high during breath.",
-      "Pullout: clean pullout with fast transition into first stroke.",
+      "Knees should stay narrower during kick recovery.",
+      "Pull-kick timing should finish into a tight streamline.",
+      "Avoid lifting the head too high during the breath.",
+      "Pullout should transition quickly into the first stroke."
     ],
     Butterfly: [
-      "Breath timing: breathe low and early. A high breath drops the hips.",
-      "Kick: generate power from hips, not excessive knee bend.",
-      "Catch: establish pressure before lifting to breathe.",
-      "Recovery: arms should stay relaxed over the water.",
-      "Underwater: dolphin kicks should build speed into breakout.",
+      "Breath should stay low and early to avoid hip drop.",
+      "Kick power should come from the hips, not excessive knee bend.",
+      "Catch should establish pressure before the breath.",
+      "Underwater dolphin kicks should build speed into breakout."
     ],
   };
 
-  const estimatedSplits = getEstimatedSplits();
+  const laneFeedback = {
+    1: "Lane 1: outside lane. Focus on straight-line swimming and breakout visibility.",
+    2: "Lane 2: review kick width, lane-line stability, and direct breakout line.",
+    3: "Lane 3: good lane for hand entry, elbow catch, breathing mechanics, and turn approach.",
+    4: "Lane 4: center lane. Strong for start, breakout, tempo, pull path, kick rhythm, and turns.",
+    5: "Lane 5: center lane. Strong for body position, elbow angle, kick amplitude, underwater timing, and fatigue review.",
+    6: "Lane 6: review breathing-side mechanics, elbow path, lane drift, and breakout line.",
+    7: "Lane 7: focus on body line, kick timing, head position, and wall speed.",
+    8: "Lane 8: outside lane. Best for start, breakout distance, straight-line swimming, and finish timing.",
+  };
 
   return (
     <div style={{
@@ -261,11 +154,9 @@ function App() {
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <h1 style={{ fontSize: "60px", marginBottom: "10px" }}>SwimAI</h1>
-
           <p style={{ fontSize: "20px", color: "#cbd5e1" }}>
-            Upload race video, extract frames, and estimate split times automatically.
+            Upload race video, mark race points, and calculate real video-based splits.
           </p>
-
           <div style={{
             marginTop: "20px",
             background: "#5b2c00",
@@ -273,15 +164,11 @@ function App() {
             padding: "15px",
             borderRadius: "10px"
           }}>
-            Prototype mode: split times are estimated from video duration. They are not official meet splits yet.
+            Marker mode: split times are calculated from the video timeline you mark.
           </div>
         </div>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "24px"
-        }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
           <div style={{ background: "#1e293b", padding: "30px", borderRadius: "18px" }}>
             <h2>Race Details</h2>
 
@@ -295,26 +182,12 @@ function App() {
             />
 
             <p>Lane</p>
-            <select
-              value={lane}
-              onChange={(e) => {
-                setLane(e.target.value);
-                setShowResult(false);
-              }}
-              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
-            >
+            <select value={lane} onChange={(e) => setLane(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}>
               {[1,2,3,4,5,6,7,8].map((n) => <option key={n}>{n}</option>)}
             </select>
 
             <p>Stroke</p>
-            <select
-              value={stroke}
-              onChange={(e) => {
-                setStroke(e.target.value);
-                setShowResult(false);
-              }}
-              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
-            >
+            <select value={stroke} onChange={(e) => setStroke(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}>
               <option>Freestyle</option>
               <option>Backstroke</option>
               <option>Breaststroke</option>
@@ -322,14 +195,7 @@ function App() {
             </select>
 
             <p>Distance</p>
-            <select
-              value={distance}
-              onChange={(e) => {
-                setDistance(e.target.value);
-                setShowResult(false);
-              }}
-              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
-            >
+            <select value={distance} onChange={(e) => setDistance(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}>
               <option>50</option>
               <option>100</option>
               <option>200</option>
@@ -344,7 +210,6 @@ function App() {
                 e.preventDefault();
                 handleVideo(e.dataTransfer.files[0]);
               }}
-              onPaste={(e) => handleVideo(e.clipboardData.files[0])}
               style={{
                 border: "2px dashed #38bdf8",
                 borderRadius: "14px",
@@ -354,60 +219,61 @@ function App() {
                 marginBottom: "20px"
               }}
             >
-              <p style={{ fontSize: "22px" }}>Drop or paste a swim video here</p>
-              <p style={{ color: "#94a3b8" }}>Or choose a video file from your computer</p>
-
-              <input
-                type="file"
-                accept="video/*,.mov,.mp4,.m4v"
-                onChange={(e) => handleVideo(e.target.files[0])}
-              />
-
-              {fileName && (
-                <p style={{ marginTop: "15px", color: "#38bdf8" }}>
-                  Selected video: {fileName}
-                </p>
-              )}
+              <p style={{ fontSize: "22px" }}>Drop a swim video here</p>
+              <input type="file" accept="video/*,.mov,.mp4,.m4v" onChange={(e) => handleVideo(e.target.files[0])} />
+              {fileName && <p style={{ marginTop: "15px", color: "#38bdf8" }}>Selected video: {fileName}</p>}
             </div>
 
             {videoUrl && (
               <>
                 <h3>Video Preview</h3>
-
                 <video
                   ref={videoRef}
                   src={videoUrl}
                   controls
                   playsInline
-                  onLoadedMetadata={(e) => {
-                    setVideoDurationSeconds(e.target.duration);
-                  }}
                   style={{ width: "100%", borderRadius: "12px", marginBottom: "20px", background: "black" }}
                 />
 
-                <div style={{ background: "#0f172a", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
-                  <p><strong>File:</strong> {fileName}</p>
-                  <p><strong>Type:</strong> {fileType}</p>
-                  <p><strong>Size:</strong> {fileSize}</p>
-                  <p><strong>Video Duration:</strong> {videoDurationSeconds ? formatTime(videoDurationSeconds) : "Loading..."}</p>
+                <h3>Split Markers</h3>
+                <p style={{ color: "#cbd5e1" }}>
+                  Play or scrub the video. When the swimmer reaches each point, click the matching marker.
+                </p>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px" }}>
+                  {["Start", "15m", "35m", "50m", "75m", "Finish"].map((label) => (
+                    <button
+                      key={label}
+                      onClick={() => markTime(label)}
+                      style={{
+                        padding: "12px",
+                        background: markers[label] !== undefined ? "#22c55e" : "#334155",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      Mark {label}: {markers[label] !== undefined ? formatTime(markers[label]) : "—"}
+                    </button>
+                  ))}
                 </div>
 
                 <button
-                  onClick={extractFrames}
+                  onClick={() => setMarkers({})}
                   style={{
                     width: "100%",
-                    padding: "15px",
-                    background: "#22c55e",
+                    padding: "12px",
+                    background: "#ef4444",
                     color: "white",
                     border: "none",
-                    borderRadius: "10px",
+                    borderRadius: "8px",
                     cursor: "pointer",
-                    fontSize: "18px",
-                    fontWeight: "bold",
                     marginBottom: "20px"
                   }}
                 >
-                  {isExtracting ? "Extracting Frames..." : "Extract Key Frames"}
+                  Clear Markers
                 </button>
               </>
             )}
@@ -426,30 +292,16 @@ function App() {
                 fontWeight: "bold"
               }}
             >
-              Generate Estimated Split Report
+              Generate Split Report
             </button>
           </div>
 
           <div style={{ background: "#1e293b", padding: "30px", borderRadius: "18px" }}>
             <h2>SwimAI Report</h2>
 
-            {frames.length > 0 && (
-              <div style={{ background: "#0f172a", padding: "20px", borderRadius: "12px", marginBottom: "20px" }}>
-                <h3>Extracted Video Frames</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  {frames.map((frame, index) => (
-                    <div key={index}>
-                      <img src={frame.image} alt={frame.label} style={{ width: "100%", borderRadius: "8px", border: "1px solid #334155" }} />
-                      <p style={{ color: "#cbd5e1", fontSize: "14px" }}>{frame.label} — {frame.time}s</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {!showResult && (
               <p style={{ color: "#94a3b8", fontSize: "20px", lineHeight: "1.6" }}>
-                Upload a video and generate estimated splits from video duration.
+                Mark the video timeline points and generate a split report.
               </p>
             )}
 
@@ -460,49 +312,33 @@ function App() {
                   <p><strong>Event:</strong> {distance} {stroke}</p>
                   <p><strong>Lane:</strong> {lane}</p>
                   <p><strong>Video:</strong> {fileName || "No Video Uploaded"}</p>
-                  <p><strong>Video Duration:</strong> {videoDurationSeconds ? formatTime(videoDurationSeconds) : "No video duration available"}</p>
-                  <h1 style={{ color: "#38bdf8" }}>Estimated Split Report</h1>
+                  <h1 style={{ color: "#38bdf8" }}>Video Split Report</h1>
                 </div>
 
-                {estimatedSplits && (
-                  <div style={{ background: "#1e1b4b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                    <h3>Estimated Splits</h3>
-                    <p><strong>15m:</strong> {formatTime(estimatedSplits.split15)}</p>
-                    <p><strong>35m:</strong> {formatTime(estimatedSplits.split35)}</p>
-                    {estimatedSplits.split50 && <p><strong>50m:</strong> {formatTime(estimatedSplits.split50)}</p>}
-                    {estimatedSplits.split75 && <p><strong>75m:</strong> {formatTime(estimatedSplits.split75)}</p>}
-                    {estimatedSplits.split100 && <p><strong>100m:</strong> {formatTime(estimatedSplits.split100)}</p>}
-                    {estimatedSplits.split150 && <p><strong>150m:</strong> {formatTime(estimatedSplits.split150)}</p>}
-                    {estimatedSplits.split250 && <p><strong>250m:</strong> {formatTime(estimatedSplits.split250)}</p>}
-                    <p><strong>Finish:</strong> {formatTime(estimatedSplits.finalTime)}</p>
-                  </div>
-                )}
+                <div style={{ background: "#1e1b4b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
+                  <h3>Marked Times</h3>
+                  {["Start", "15m", "35m", "50m", "75m", "Finish"].map((label) => (
+                    <p key={label}><strong>{label}:</strong> {formatTime(markers[label])}</p>
+                  ))}
+                </div>
 
                 <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Split-Based Feedback</h3>
-                  {getSplitFeedback().map((note, index) => (
+                  <h3>Split Analysis</h3>
+                  {getSplitNotes().map((note, index) => (
                     <p key={index}>• {note}</p>
                   ))}
                 </div>
 
                 <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Lane-Specific Review</h3>
+                  <h3>Lane Review</h3>
                   <p>{laneFeedback[lane]}</p>
                 </div>
 
-                <div style={{ background: "#052e2b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
+                <div style={{ background: "#052e2b", padding: "18px", borderRadius: "12px" }}>
                   <h3>{stroke} Technical Focus</h3>
                   {strokeFeedback[stroke].map((item, index) => (
                     <p key={index}>• {item}</p>
                   ))}
-                </div>
-
-                <div style={{ background: "#3b1d0b", padding: "18px", borderRadius: "12px" }}>
-                  <h3>Important</h3>
-                  <p>
-                    These splits are estimated from video duration only. For accurate splits, SwimAI will need
-                    either manual timeline markers or AI/computer vision to detect the start, 15m, 35m, walls, and finish.
-                  </p>
                 </div>
               </>
             )}
