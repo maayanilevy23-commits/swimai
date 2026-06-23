@@ -14,11 +14,16 @@ function App() {
   const [frames, setFrames] = useState([]);
   const [isExtracting, setIsExtracting] = useState(false);
 
+  const [split15, setSplit15] = useState("");
+  const [split35, setSplit35] = useState("");
+  const [split50, setSplit50] = useState("");
+  const [split75, setSplit75] = useState("");
+  const [finalTime, setFinalTime] = useState("");
+
   const videoRef = useRef(null);
 
   const handleVideo = (file) => {
     if (!file) return;
-
     if (!file.type.startsWith("video/")) {
       alert("Please upload a video file.");
       return;
@@ -35,7 +40,6 @@ function App() {
 
   const extractFrames = async () => {
     const video = videoRef.current;
-
     if (!video || !videoUrl) {
       alert("Please upload a video first.");
       return;
@@ -45,7 +49,6 @@ function App() {
     setFrames([]);
 
     const duration = video.duration;
-
     if (!duration || Number.isNaN(duration)) {
       alert("Video is still loading. Wait a second and try again.");
       setIsExtracting(false);
@@ -94,178 +97,100 @@ function App() {
     setIsExtracting(false);
   };
 
+  const toNumber = (value) => {
+    const n = parseFloat(value);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  const getSplitAnalysis = () => {
+    const s15 = toNumber(split15);
+    const s35 = toNumber(split35);
+    const s50 = toNumber(split50);
+    const s75 = toNumber(split75);
+    const finish = toNumber(finalTime);
+
+    const notes = [];
+
+    if (s15) {
+      notes.push(`15m split: ${s15.toFixed(2)}. This reflects start reaction, streamline quality, underwater speed, and breakout timing.`);
+    }
+
+    if (s15 && s35) {
+      const earlySpeed = s35 - s15;
+      notes.push(`15m–35m segment: ${earlySpeed.toFixed(2)} seconds. This measures early surface swimming speed after the breakout.`);
+    }
+
+    if (s50) {
+      notes.push(`50m split: ${s50.toFixed(2)}. This is the main checkpoint for front-half speed.`);
+    }
+
+    if (s50 && finish) {
+      const secondHalf = finish - s50;
+      const dropOff = secondHalf - s50;
+      notes.push(`Second 50: ${secondHalf.toFixed(2)}. Drop-off from first 50: ${dropOff.toFixed(2)} seconds.`);
+
+      if (dropOff > 3) {
+        notes.push("Technical concern: large second-half fade. Likely causes include shorter stroke length, weaker kick, slower turn speed, or breathing disruption.");
+      } else if (dropOff > 1.5) {
+        notes.push("Moderate fade. Main focus should be maintaining distance-per-stroke and tempo after the 50 turn.");
+      } else {
+        notes.push("Good pacing profile. The swimmer appears to hold the second half well relative to the first half.");
+      }
+    }
+
+    if (s75 && finish) {
+      const last25 = finish - s75;
+      notes.push(`Final 25: ${last25.toFixed(2)}. This helps evaluate late-race tempo, kick strength, and finish mechanics.`);
+    }
+
+    if (notes.length === 0) {
+      notes.push("Enter split times to generate split-based race feedback.");
+    }
+
+    return notes;
+  };
+
   const laneFeedback = {
-    1: {
-      title: "Lane 1 Review",
-      camera:
-        "Outside lane. Review accuracy depends heavily on whether the camera is angled toward lane 1 or centered on the pool. Adjacent-lane interference is lower, but wall-side distortion can make body-line judgment harder.",
-      focus:
-        "Best focus areas: breakout distance, body line against the lane rope, approach into turns, and whether the swimmer drifts toward the wall side of the lane.",
-      risk:
-        "Risk: if the camera is on the opposite side, elbow path, kick width, and breathing mechanics may be partially hidden."
-    },
-    2: {
-      title: "Lane 2 Review",
-      camera:
-        "Lane 2 usually gives better visibility than lane 1, but the outside angle can still make depth and underwater distance harder to judge.",
-      focus:
-        "Best focus areas: stroke alignment, lane-line stability, kick symmetry, and whether the swimmer maintains a straight path off the breakout.",
-      risk:
-        "Risk: adjacent swimmers can overlap during the middle of the race, especially during turns and breakouts."
-    },
-    3: {
-      title: "Lane 3 Review",
-      camera:
-        "Lane 3 is usually a strong review lane because the swimmer is close enough for body mechanics but still central enough to track through turns.",
-      focus:
-        "Best focus areas: early vertical forearm, hand entry position, kick timing, turn approach speed, and breathing disruption.",
-      risk:
-        "Risk: camera zoom and side angle may still affect exact underwater distance."
-    },
-    4: {
-      title: "Lane 4 Review",
-      camera:
-        "Lane 4 is one of the best lanes for review. The swimmer is typically central, easier to track, and less distorted by angle.",
-      focus:
-        "Best focus areas: start reaction, breakout timing, pull mechanics, tempo consistency, turn speed, and finish timing.",
-      risk:
-        "Risk: if the camera follows the field instead of the lane, tracking can still shift away during the race."
-    },
-    5: {
-      title: "Lane 5 Review",
-      camera:
-        "Lane 5 is also ideal for technical review. Center-lane visibility usually allows the clearest view of stroke rhythm, kick, underwater, and turns.",
-      focus:
-        "Best focus areas: body position, elbow angle during catch, kick amplitude, underwater breakout, wall contact, and late-race tempo decay.",
-      risk:
-        "Risk: center lanes often have nearby swimmers on both sides, so overlap can affect automated tracking later."
-    },
-    6: {
-      title: "Lane 6 Review",
-      camera:
-        "Lane 6 is usable for technical review but may start to show more side-angle distortion depending on camera position.",
-      focus:
-        "Best focus areas: pull path, breathing-side mechanics, lane-line drift, turn approach, and breakout line.",
-      risk:
-        "Risk: elbow and shoulder mechanics may look different depending on whether the camera is on the swimmer's breathing side."
-    },
-    7: {
-      title: "Lane 7 Review",
-      camera:
-        "Lane 7 is closer to the outside. Review should focus on large technical patterns rather than tiny joint-angle details unless the camera is close.",
-      focus:
-        "Best focus areas: kick timing, body-line stability, head position during breathing, turn rotation, and breakout quality.",
-      risk:
-        "Risk: underwater and elbow detail may be less reliable if the swimmer is far from the camera."
-    },
-    8: {
-      title: "Lane 8 Review",
-      camera:
-        "Outside lane. Tracking can be clean if the camera is on the same side, but difficult if the swimmer is far from the camera.",
-      focus:
-        "Best focus areas: start, breakout distance, straight-line swimming, finish timing, and major body-position changes.",
-      risk:
-        "Risk: detailed elbow, knee, and underwater analysis may require better zoom or a closer camera angle."
-    },
+    1: "Lane 1: outside lane. Focus on straight-line swimming, avoiding drift toward the wall side, and maintaining clean breakout visibility.",
+    2: "Lane 2: slight outside angle. Review kick width, lane-line stability, and whether the swimmer holds a direct breakout line.",
+    3: "Lane 3: good review lane. Focus on hand entry, elbow position during catch, breathing mechanics, and turn approach speed.",
+    4: "Lane 4: center lane. Best for start, breakout, stroke tempo, pull path, kick rhythm, and turn-speed review.",
+    5: "Lane 5: center lane. Strong visibility for body position, elbow angle, kick amplitude, underwater timing, and late-race tempo drop.",
+    6: "Lane 6: mid-outside lane. Review breathing-side mechanics, elbow path, lane drift, and breakout line.",
+    7: "Lane 7: outside-biased lane. Focus on bigger technical patterns: body line, kick timing, head position, and wall speed.",
+    8: "Lane 8: outside lane. Best reviewed for start, breakout distance, straight-line swimming, finish timing, and major body-position changes.",
   };
 
   const strokeFeedback = {
-    Freestyle: {
-      title: "Freestyle Technical Feedback",
-      pull:
-        "Pull/catch: look for a high-elbow catch. If the elbow drops early, the swimmer will press down on the water instead of anchoring and pulling back.",
-      elbow:
-        "Elbow position: the elbow should stay higher than the wrist during the catch. A collapsed elbow reduces propulsion and usually increases stroke count.",
-      kick:
-        "Kick: kick should be compact from the hips. Excessive knee bend creates drag and can make the legs sink late in the race.",
-      underwater:
-        "Underwater/breakout: streamline should stay tight with no early head lift. The breakout should connect directly into the first stroke without a pause.",
-      breathing:
-        "Breathing: avoid lifting the head forward. Breath should happen through rotation, not by raising the head out of alignment."
-    },
-    Backstroke: {
-      title: "Backstroke Technical Feedback",
-      pull:
-        "Pull/catch: hand should enter cleanly and set up pressure quickly. A shallow catch usually leads to slipping water and slower tempo.",
-      elbow:
-        "Elbow/arm path: avoid crossing over behind the head. Entry should stay closer to the shoulder line to protect alignment and maximize pull.",
-      kick:
-        "Kick: hips should stay high with a steady flutter kick. Too much knee bend will break the surface and create drag.",
-      underwater:
-        "Underwater/breakout: dolphin kicks should stay narrow and connected. Breakout timing matters because surfacing too early wastes speed.",
-      breathing:
-        "Body line: head must remain still. Chin lift or head movement usually causes hip drop and tempo disruption."
-    },
-    Breaststroke: {
-      title: "Breaststroke Technical Feedback",
-      pull:
-        "Pull: hands should accelerate out and around, then recover quickly forward. Pulling too far back delays the kick and breaks timing.",
-      elbow:
-        "Elbow position: elbows should stay controlled during the in-sweep. If they drop too low, the swimmer loses leverage and rises too much.",
-      kick:
-        "Kick: knees should not open too wide. Wide knees create drag; the heels should recover efficiently and snap into a tight streamline.",
-      underwater:
-        "Underwater/pullout: pullout should be powerful but clean, with a fast transition into the first stroke. A late or weak kick reduces breakout speed.",
-      breathing:
-        "Timing: breath should fit naturally into the pull. Overlifting the head increases drag and delays the recovery."
-    },
-    Butterfly: {
-      title: "Butterfly Technical Feedback",
-      pull:
-        "Pull/catch: hands should establish pressure before the breath. If the swimmer lifts to breathe before the catch, the hips drop.",
-      elbow:
-        "Elbow/arm recovery: arms should recover low and relaxed over the water. Bent or tense recovery usually indicates fatigue or poor rhythm.",
-      kick:
-        "Kick: power should come from the hips, not excessive knee bend. Knees bending too much creates drag and disrupts rhythm.",
-      underwater:
-        "Underwater/breakout: dolphin kicks should build speed into the breakout. Surfacing flat or late can kill momentum.",
-      breathing:
-        "Breathing: breath should be low and quick. A high breath causes the chest to rise and hips to fall."
-    },
+    Freestyle: [
+      "Elbow/catch: keep the elbow higher than the wrist during the catch. A dropped elbow reduces pull power.",
+      "Pull: anchor the hand before pulling back. Avoid pressing down on the water.",
+      "Kick: kick should be compact from the hips. Excessive knee bend creates drag.",
+      "Underwater: tight streamline with no early head lift. Breakout should connect directly into the first stroke.",
+      "Breathing: rotate to breathe instead of lifting the head forward."
+    ],
+    Backstroke: [
+      "Head position: keep the head still. Chin lift drops the hips.",
+      "Entry: avoid crossing over behind the head. Enter closer to shoulder line.",
+      "Kick: steady flutter kick with high hips and limited knee bend.",
+      "Underwater: narrow dolphin kicks with clean breakout timing.",
+      "Pull: set pressure early instead of slipping through the catch."
+    ],
+    Breaststroke: [
+      "Kick: keep knees narrower during recovery. Wide knees create drag.",
+      "Timing: kick should finish into a tight streamline.",
+      "Pull: do not pull too far back; it delays recovery and breaks rhythm.",
+      "Head: avoid lifting too high during breath.",
+      "Pullout: clean pullout with fast transition into first stroke."
+    ],
+    Butterfly: [
+      "Breath timing: breathe low and early. A high breath drops the hips.",
+      "Kick: generate power from hips, not excessive knee bend.",
+      "Catch: establish pressure before lifting to breathe.",
+      "Recovery: arms should stay relaxed over the water.",
+      "Underwater: dolphin kicks should build speed into breakout."
+    ],
   };
-
-  const distanceFeedback = {
-    50: {
-      title: "50 Race Priorities",
-      start:
-        "Start/reaction: reaction time and first 15 meters are critical. The swimmer cannot afford a slow reaction, loose streamline, or passive breakout.",
-      pacing:
-        "Race model: no pacing phase. The goal is maximal speed while preserving enough technique to avoid spinning or shortening the stroke.",
-      turn:
-        "Turns/finish: if this is a 50 with a turn, wall contact and breakout must be aggressive. Finish should not include a glide into the wall."
-    },
-    100: {
-      title: "100 Race Priorities",
-      start:
-        "Start/reaction: start must be fast but controlled. A poor breakout can force the swimmer to overwork the first 25.",
-      pacing:
-        "Race model: the key issue is second-half efficiency. Look for stroke length loss, tempo decay, and breathing disruption after the 50.",
-      turn:
-        "Turns: the 50 turn is a major performance point. Slow rotation or weak push-off can cost more than a small stroke flaw."
-    },
-    200: {
-      title: "200 Race Priorities",
-      start:
-        "Start/reaction: start matters, but the swimmer should not over-sprint the first 25 at the cost of body position.",
-      pacing:
-        "Race model: pacing discipline is critical. The third 50 often reveals whether the swimmer can hold technique under fatigue.",
-      turn:
-        "Turns: repeatable walls matter. Each turn should preserve speed with controlled breakout timing."
-    },
-    500: {
-      title: "500 Race Priorities",
-      start:
-        "Start/reaction: start should be efficient, not reckless. The goal is to enter the race rhythm quickly.",
-      pacing:
-        "Race model: focus on stroke economy, breathing rhythm, and minimizing technical breakdown over the back half.",
-      turn:
-        "Turns: small losses add up. Turn speed, push-off angle, and breakout consistency are major factors across the race."
-    },
-  };
-
-  const currentLane = laneFeedback[lane];
-  const currentStroke = strokeFeedback[stroke];
-  const currentDistance = distanceFeedback[distance];
 
   return (
     <div style={{
@@ -278,11 +203,9 @@ function App() {
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <h1 style={{ fontSize: "60px", marginBottom: "10px" }}>SwimAI</h1>
-
           <p style={{ fontSize: "20px", color: "#cbd5e1" }}>
-            Upload race video, extract frames, and generate technical swim feedback.
+            Upload race video, extract frames, add splits, and generate technical swim feedback.
           </p>
-
           <div style={{
             marginTop: "20px",
             background: "#5b2c00",
@@ -290,7 +213,7 @@ function App() {
             padding: "15px",
             borderRadius: "10px"
           }}>
-            Prototype mode: frames are real. Technical feedback changes by lane, stroke, and distance.
+            Prototype mode: frames and splits are real. Technical feedback is rule-based until AI vision is connected.
           </div>
         </div>
 
@@ -299,11 +222,7 @@ function App() {
           gridTemplateColumns: "1fr 1fr",
           gap: "24px"
         }}>
-          <div style={{
-            background: "#1e293b",
-            padding: "30px",
-            borderRadius: "18px"
-          }}>
+          <div style={{ background: "#1e293b", padding: "30px", borderRadius: "18px" }}>
             <h2>Race Details</h2>
 
             <p>Swimmer Name</p>
@@ -311,17 +230,8 @@ function App() {
               type="text"
               placeholder="Name"
               value={swimmerName}
-              onChange={(e) => {
-                setSwimmerName(e.target.value);
-                setShowResult(false);
-              }}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "8px",
-                border: "none",
-                marginBottom: "20px"
-              }}
+              onChange={(e) => setSwimmerName(e.target.value)}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "none", marginBottom: "20px" }}
             />
 
             <p>Lane</p>
@@ -331,17 +241,65 @@ function App() {
                 setLane(e.target.value);
                 setShowResult(false);
               }}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "8px",
-                marginBottom: "20px"
-              }}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
             >
-              {[1,2,3,4,5,6,7,8].map((n) => (
-                <option key={n}>{n}</option>
-              ))}
+              {[1,2,3,4,5,6,7,8].map((n) => <option key={n}>{n}</option>)}
             </select>
+
+            <p>Stroke</p>
+            <select
+              value={stroke}
+              onChange={(e) => {
+                setStroke(e.target.value);
+                setShowResult(false);
+              }}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
+            >
+              <option>Freestyle</option>
+              <option>Backstroke</option>
+              <option>Breaststroke</option>
+              <option>Butterfly</option>
+            </select>
+
+            <p>Distance</p>
+            <select
+              value={distance}
+              onChange={(e) => {
+                setDistance(e.target.value);
+                setShowResult(false);
+              }}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}
+            >
+              <option>50</option>
+              <option>100</option>
+              <option>200</option>
+              <option>500</option>
+            </select>
+
+            <h2>Split Times</h2>
+
+            {[
+              ["15m Split", split15, setSplit15],
+              ["35m Split", split35, setSplit35],
+              ["50m Split", split50, setSplit50],
+              ["75m Split", split75, setSplit75],
+              ["Final Time", finalTime, setFinalTime],
+            ].map(([label, value, setter]) => (
+              <div key={label}>
+                <p>{label}</p>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Example: 28.83"
+                  value={value}
+                  onChange={(e) => {
+                    setter(e.target.value);
+                    setShowResult(false);
+                  }}
+                  style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "none", marginBottom: "12px" }}
+                />
+              </div>
+            ))}
 
             <h2>Upload Race Video</h2>
 
@@ -351,9 +309,7 @@ function App() {
                 e.preventDefault();
                 handleVideo(e.dataTransfer.files[0]);
               }}
-              onPaste={(e) => {
-                handleVideo(e.clipboardData.files[0]);
-              }}
+              onPaste={(e) => handleVideo(e.clipboardData.files[0])}
               style={{
                 border: "2px dashed #38bdf8",
                 borderRadius: "14px",
@@ -364,10 +320,7 @@ function App() {
               }}
             >
               <p style={{ fontSize: "22px" }}>Drop or paste a swim video here</p>
-
-              <p style={{ color: "#94a3b8" }}>
-                Or choose a video file from your computer
-              </p>
+              <p style={{ color: "#94a3b8" }}>Or choose a video file from your computer</p>
 
               <input
                 type="file"
@@ -385,29 +338,16 @@ function App() {
             {videoUrl && (
               <>
                 <h3>Video Preview</h3>
-
                 <video
                   ref={videoRef}
                   src={videoUrl}
                   controls
                   playsInline
-                  onLoadedMetadata={(e) => {
-                    setVideoDuration(e.target.duration.toFixed(2) + " seconds");
-                  }}
-                  style={{
-                    width: "100%",
-                    borderRadius: "12px",
-                    marginBottom: "20px",
-                    background: "black"
-                  }}
+                  onLoadedMetadata={(e) => setVideoDuration(e.target.duration.toFixed(2) + " seconds")}
+                  style={{ width: "100%", borderRadius: "12px", marginBottom: "20px", background: "black" }}
                 />
 
-                <div style={{
-                  background: "#0f172a",
-                  padding: "15px",
-                  borderRadius: "10px",
-                  marginBottom: "20px"
-                }}>
+                <div style={{ background: "#0f172a", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
                   <p><strong>File:</strong> {fileName}</p>
                   <p><strong>Type:</strong> {fileType}</p>
                   <p><strong>Size:</strong> {fileSize}</p>
@@ -434,46 +374,6 @@ function App() {
               </>
             )}
 
-            <p>Stroke</p>
-            <select
-              value={stroke}
-              onChange={(e) => {
-                setStroke(e.target.value);
-                setShowResult(false);
-              }}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "8px",
-                marginBottom: "20px"
-              }}
-            >
-              <option>Freestyle</option>
-              <option>Backstroke</option>
-              <option>Breaststroke</option>
-              <option>Butterfly</option>
-            </select>
-
-            <p>Distance</p>
-            <select
-              value={distance}
-              onChange={(e) => {
-                setDistance(e.target.value);
-                setShowResult(false);
-              }}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "8px",
-                marginBottom: "20px"
-              }}
-            >
-              <option>50</option>
-              <option>100</option>
-              <option>200</option>
-              <option>500</option>
-            </select>
-
             <button
               onClick={() => setShowResult(true)}
               style={{
@@ -492,41 +392,17 @@ function App() {
             </button>
           </div>
 
-          <div style={{
-            background: "#1e293b",
-            padding: "30px",
-            borderRadius: "18px"
-          }}>
+          <div style={{ background: "#1e293b", padding: "30px", borderRadius: "18px" }}>
             <h2>SwimAI Report</h2>
 
             {frames.length > 0 && (
-              <div style={{
-                background: "#0f172a",
-                padding: "20px",
-                borderRadius: "12px",
-                marginBottom: "20px"
-              }}>
+              <div style={{ background: "#0f172a", padding: "20px", borderRadius: "12px", marginBottom: "20px" }}>
                 <h3>Extracted Video Frames</h3>
-
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "12px"
-                }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   {frames.map((frame, index) => (
                     <div key={index}>
-                      <img
-                        src={frame.image}
-                        alt={frame.label}
-                        style={{
-                          width: "100%",
-                          borderRadius: "8px",
-                          border: "1px solid #334155"
-                        }}
-                      />
-                      <p style={{ color: "#cbd5e1", fontSize: "14px" }}>
-                        {frame.label} — {frame.time}s
-                      </p>
+                      <img src={frame.image} alt={frame.label} style={{ width: "100%", borderRadius: "8px", border: "1px solid #334155" }} />
+                      <p style={{ color: "#cbd5e1", fontSize: "14px" }}>{frame.label} — {frame.time}s</p>
                     </div>
                   ))}
                 </div>
@@ -535,18 +411,13 @@ function App() {
 
             {!showResult && (
               <p style={{ color: "#94a3b8", fontSize: "20px", lineHeight: "1.6" }}>
-                Upload a video, extract frames, and generate technical feedback.
+                Add race details, split times, and video to generate technical feedback.
               </p>
             )}
 
             {showResult && (
               <>
-                <div style={{
-                  background: "#0f172a",
-                  padding: "20px",
-                  borderRadius: "12px",
-                  marginBottom: "20px"
-                }}>
+                <div style={{ background: "#0f172a", padding: "20px", borderRadius: "12px", marginBottom: "20px" }}>
                   <p><strong>Swimmer:</strong> {swimmerName || "Not Entered"}</p>
                   <p><strong>Event:</strong> {distance} {stroke}</p>
                   <p><strong>Lane:</strong> {lane}</p>
@@ -555,36 +426,30 @@ function App() {
                   <h1 style={{ color: "#38bdf8" }}>Technical Review</h1>
                 </div>
 
+                <div style={{ background: "#1e1b4b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
+                  <h3>Split Analysis</h3>
+                  {getSplitAnalysis().map((note, index) => (
+                    <p key={index}>• {note}</p>
+                  ))}
+                </div>
+
                 <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>{currentLane.title}</h3>
-                  <p><strong>Camera:</strong> {currentLane.camera}</p>
-                  <p><strong>Lane focus:</strong> {currentLane.focus}</p>
-                  <p><strong>Tracking risk:</strong> {currentLane.risk}</p>
+                  <h3>Lane-Specific Review</h3>
+                  <p>{laneFeedback[lane]}</p>
                 </div>
 
                 <div style={{ background: "#052e2b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>{currentStroke.title}</h3>
-                  <p><strong>Pull:</strong> {currentStroke.pull}</p>
-                  <p><strong>Elbow / arm path:</strong> {currentStroke.elbow}</p>
-                  <p><strong>Kick:</strong> {currentStroke.kick}</p>
-                  <p><strong>Underwater / breakout:</strong> {currentStroke.underwater}</p>
-                  <p><strong>Body / breathing:</strong> {currentStroke.breathing}</p>
-                </div>
-
-                <div style={{ background: "#1e1b4b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>{currentDistance.title}</h3>
-                  <p><strong>Start / reaction:</strong> {currentDistance.start}</p>
-                  <p><strong>Race model:</strong> {currentDistance.pacing}</p>
-                  <p><strong>Turns / finish:</strong> {currentDistance.turn}</p>
+                  <h3>{stroke} Technical Focus</h3>
+                  {strokeFeedback[stroke].map((item, index) => (
+                    <p key={index}>• {item}</p>
+                  ))}
                 </div>
 
                 <div style={{ background: "#3b1d0b", padding: "18px", borderRadius: "12px" }}>
-                  <h3>Important</h3>
+                  <h3>Next Step</h3>
                   <p>
-                    These technical notes change based on lane, stroke, and distance.
-                    They are not yet visual AI judgments. To detect a truly bent elbow,
-                    knee position, underwater distance, kick timing, or breakout quality
-                    from the uploaded video, the next step is connecting AI vision to the extracted frames.
+                    This now supports split-based feedback. The next major step is AI vision so SwimAI can detect elbow position,
+                    kick mechanics, underwater distance, and breakout quality directly from extracted frames.
                   </p>
                 </div>
               </>
