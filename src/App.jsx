@@ -8,22 +8,17 @@ function App() {
   const [fileSize, setFileSize] = useState("");
   const [fileType, setFileType] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
-  const [videoDuration, setVideoDuration] = useState("");
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState(null);
   const [swimmerName, setSwimmerName] = useState("");
   const [lane, setLane] = useState("5");
   const [frames, setFrames] = useState([]);
   const [isExtracting, setIsExtracting] = useState(false);
 
-  const [split15, setSplit15] = useState("");
-  const [split35, setSplit35] = useState("");
-  const [split50, setSplit50] = useState("");
-  const [split75, setSplit75] = useState("");
-  const [finalTime, setFinalTime] = useState("");
-
   const videoRef = useRef(null);
 
   const handleVideo = (file) => {
     if (!file) return;
+
     if (!file.type.startsWith("video/")) {
       alert("Please upload a video file.");
       return;
@@ -33,13 +28,14 @@ function App() {
     setFileSize((file.size / (1024 * 1024)).toFixed(2) + " MB");
     setFileType(file.type || "Unknown video type");
     setVideoUrl(URL.createObjectURL(file));
-    setVideoDuration("");
+    setVideoDurationSeconds(null);
     setFrames([]);
     setShowResult(false);
   };
 
   const extractFrames = async () => {
     const video = videoRef.current;
+
     if (!video || !videoUrl) {
       alert("Please upload a video first.");
       return;
@@ -49,6 +45,7 @@ function App() {
     setFrames([]);
 
     const duration = video.duration;
+
     if (!duration || Number.isNaN(duration)) {
       alert("Video is still loading. Wait a second and try again.");
       setIsExtracting(false);
@@ -97,54 +94,113 @@ function App() {
     setIsExtracting(false);
   };
 
-  const toNumber = (value) => {
-    const n = parseFloat(value);
-    return Number.isNaN(n) ? null : n;
+  const getEstimatedSplits = () => {
+    if (!videoDurationSeconds) return null;
+
+    const total = videoDurationSeconds;
+
+    if (distance === "50") {
+      return {
+        split15: total * 0.28,
+        split35: total * 0.68,
+        split50: total,
+        finalTime: total,
+      };
+    }
+
+    if (distance === "100") {
+      return {
+        split15: total * 0.12,
+        split35: total * 0.30,
+        split50: total * 0.47,
+        split75: total * 0.73,
+        finalTime: total,
+      };
+    }
+
+    if (distance === "200") {
+      return {
+        split15: total * 0.07,
+        split35: total * 0.16,
+        split50: total * 0.24,
+        split75: total * 0.37,
+        split100: total * 0.50,
+        split150: total * 0.76,
+        finalTime: total,
+      };
+    }
+
+    return {
+      split15: total * 0.03,
+      split35: total * 0.07,
+      split50: total * 0.10,
+      split100: total * 0.20,
+      split250: total * 0.50,
+      finalTime: total,
+    };
   };
 
-  const getSplitAnalysis = () => {
-    const s15 = toNumber(split15);
-    const s35 = toNumber(split35);
-    const s50 = toNumber(split50);
-    const s75 = toNumber(split75);
-    const finish = toNumber(finalTime);
+  const formatTime = (seconds) => {
+    if (!seconds && seconds !== 0) return "—";
+
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    if (mins > 0) {
+      return `${mins}:${secs.toFixed(2).padStart(5, "0")}`;
+    }
+
+    return secs.toFixed(2);
+  };
+
+  const getSplitFeedback = () => {
+    const splits = getEstimatedSplits();
+
+    if (!splits) {
+      return ["Upload a video so SwimAI can estimate splits from the video duration."];
+    }
 
     const notes = [];
 
-    if (s15) {
-      notes.push(`15m split: ${s15.toFixed(2)}. This reflects start reaction, streamline quality, underwater speed, and breakout timing.`);
+    notes.push(`Estimated 15m: ${formatTime(splits.split15)}. This represents start, streamline, underwater speed, and breakout timing.`);
+    notes.push(`Estimated 35m: ${formatTime(splits.split35)}. This helps estimate early surface speed after the breakout.`);
+
+    if (distance === "50") {
+      notes.push(`Estimated finish: ${formatTime(splits.finalTime)}.`);
+      notes.push("For a 50, the highest-priority review areas are reaction, breakout, tempo, kick speed, and no glide into the wall.");
     }
 
-    if (s15 && s35) {
-      const earlySpeed = s35 - s15;
-      notes.push(`15m–35m segment: ${earlySpeed.toFixed(2)} seconds. This measures early surface swimming speed after the breakout.`);
-    }
+    if (distance === "100") {
+      const first50 = splits.split50;
+      const second50 = splits.finalTime - splits.split50;
+      const dropOff = second50 - first50;
 
-    if (s50) {
-      notes.push(`50m split: ${s50.toFixed(2)}. This is the main checkpoint for front-half speed.`);
-    }
-
-    if (s50 && finish) {
-      const secondHalf = finish - s50;
-      const dropOff = secondHalf - s50;
-      notes.push(`Second 50: ${secondHalf.toFixed(2)}. Drop-off from first 50: ${dropOff.toFixed(2)} seconds.`);
+      notes.push(`Estimated 50m split: ${formatTime(first50)}.`);
+      notes.push(`Estimated 75m split: ${formatTime(splits.split75)}.`);
+      notes.push(`Estimated second 50: ${formatTime(second50)}.`);
+      notes.push(`Estimated drop-off: ${dropOff >= 0 ? "+" : ""}${dropOff.toFixed(2)} seconds.`);
 
       if (dropOff > 3) {
-        notes.push("Technical concern: large second-half fade. Likely causes include shorter stroke length, weaker kick, slower turn speed, or breathing disruption.");
+        notes.push("Large estimated fade. Focus on holding stroke length, kick pressure, and turn speed after the 50.");
       } else if (dropOff > 1.5) {
-        notes.push("Moderate fade. Main focus should be maintaining distance-per-stroke and tempo after the 50 turn.");
+        notes.push("Moderate estimated fade. Main focus should be maintaining tempo without shortening the pull.");
       } else {
-        notes.push("Good pacing profile. The swimmer appears to hold the second half well relative to the first half.");
+        notes.push("Estimated pacing looks controlled. Focus shifts to breakout quality and small technical details.");
       }
     }
 
-    if (s75 && finish) {
-      const last25 = finish - s75;
-      notes.push(`Final 25: ${last25.toFixed(2)}. This helps evaluate late-race tempo, kick strength, and finish mechanics.`);
+    if (distance === "200") {
+      notes.push(`Estimated 50m: ${formatTime(splits.split50)}.`);
+      notes.push(`Estimated 100m: ${formatTime(splits.split100)}.`);
+      notes.push(`Estimated 150m: ${formatTime(splits.split150)}.`);
+      notes.push("For a 200, the third 50 is usually where stroke length, body line, and tempo discipline start to break down.");
     }
 
-    if (notes.length === 0) {
-      notes.push("Enter split times to generate split-based race feedback.");
+    if (distance === "500") {
+      notes.push(`Estimated 50m: ${formatTime(splits.split50)}.`);
+      notes.push(`Estimated 100m: ${formatTime(splits.split100)}.`);
+      notes.push(`Estimated 250m: ${formatTime(splits.split250)}.`);
+      notes.push("For a 500, the key indicators are repeatable turns, stable breathing rhythm, and avoiding excessive kick fatigue early.");
     }
 
     return notes;
@@ -167,30 +223,32 @@ function App() {
       "Pull: anchor the hand before pulling back. Avoid pressing down on the water.",
       "Kick: kick should be compact from the hips. Excessive knee bend creates drag.",
       "Underwater: tight streamline with no early head lift. Breakout should connect directly into the first stroke.",
-      "Breathing: rotate to breathe instead of lifting the head forward."
+      "Breathing: rotate to breathe instead of lifting the head forward.",
     ],
     Backstroke: [
       "Head position: keep the head still. Chin lift drops the hips.",
       "Entry: avoid crossing over behind the head. Enter closer to shoulder line.",
       "Kick: steady flutter kick with high hips and limited knee bend.",
       "Underwater: narrow dolphin kicks with clean breakout timing.",
-      "Pull: set pressure early instead of slipping through the catch."
+      "Pull: set pressure early instead of slipping through the catch.",
     ],
     Breaststroke: [
       "Kick: keep knees narrower during recovery. Wide knees create drag.",
       "Timing: kick should finish into a tight streamline.",
       "Pull: do not pull too far back; it delays recovery and breaks rhythm.",
       "Head: avoid lifting too high during breath.",
-      "Pullout: clean pullout with fast transition into first stroke."
+      "Pullout: clean pullout with fast transition into first stroke.",
     ],
     Butterfly: [
       "Breath timing: breathe low and early. A high breath drops the hips.",
       "Kick: generate power from hips, not excessive knee bend.",
       "Catch: establish pressure before lifting to breathe.",
       "Recovery: arms should stay relaxed over the water.",
-      "Underwater: dolphin kicks should build speed into breakout."
+      "Underwater: dolphin kicks should build speed into breakout.",
     ],
   };
+
+  const estimatedSplits = getEstimatedSplits();
 
   return (
     <div style={{
@@ -203,9 +261,11 @@ function App() {
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <h1 style={{ fontSize: "60px", marginBottom: "10px" }}>SwimAI</h1>
+
           <p style={{ fontSize: "20px", color: "#cbd5e1" }}>
-            Upload race video, extract frames, add splits, and generate technical swim feedback.
+            Upload race video, extract frames, and estimate split times automatically.
           </p>
+
           <div style={{
             marginTop: "20px",
             background: "#5b2c00",
@@ -213,7 +273,7 @@ function App() {
             padding: "15px",
             borderRadius: "10px"
           }}>
-            Prototype mode: frames and splits are real. Technical feedback is rule-based until AI vision is connected.
+            Prototype mode: split times are estimated from video duration. They are not official meet splits yet.
           </div>
         </div>
 
@@ -276,31 +336,6 @@ function App() {
               <option>500</option>
             </select>
 
-            <h2>Split Times</h2>
-
-            {[
-              ["15m Split", split15, setSplit15],
-              ["35m Split", split35, setSplit35],
-              ["50m Split", split50, setSplit50],
-              ["75m Split", split75, setSplit75],
-              ["Final Time", finalTime, setFinalTime],
-            ].map(([label, value, setter]) => (
-              <div key={label}>
-                <p>{label}</p>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Example: 28.83"
-                  value={value}
-                  onChange={(e) => {
-                    setter(e.target.value);
-                    setShowResult(false);
-                  }}
-                  style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "none", marginBottom: "12px" }}
-                />
-              </div>
-            ))}
-
             <h2>Upload Race Video</h2>
 
             <div
@@ -338,12 +373,15 @@ function App() {
             {videoUrl && (
               <>
                 <h3>Video Preview</h3>
+
                 <video
                   ref={videoRef}
                   src={videoUrl}
                   controls
                   playsInline
-                  onLoadedMetadata={(e) => setVideoDuration(e.target.duration.toFixed(2) + " seconds")}
+                  onLoadedMetadata={(e) => {
+                    setVideoDurationSeconds(e.target.duration);
+                  }}
                   style={{ width: "100%", borderRadius: "12px", marginBottom: "20px", background: "black" }}
                 />
 
@@ -351,7 +389,7 @@ function App() {
                   <p><strong>File:</strong> {fileName}</p>
                   <p><strong>Type:</strong> {fileType}</p>
                   <p><strong>Size:</strong> {fileSize}</p>
-                  <p><strong>Duration:</strong> {videoDuration || "Loading..."}</p>
+                  <p><strong>Video Duration:</strong> {videoDurationSeconds ? formatTime(videoDurationSeconds) : "Loading..."}</p>
                 </div>
 
                 <button
@@ -388,7 +426,7 @@ function App() {
                 fontWeight: "bold"
               }}
             >
-              Generate Technical Race Feedback
+              Generate Estimated Split Report
             </button>
           </div>
 
@@ -411,7 +449,7 @@ function App() {
 
             {!showResult && (
               <p style={{ color: "#94a3b8", fontSize: "20px", lineHeight: "1.6" }}>
-                Add race details, split times, and video to generate technical feedback.
+                Upload a video and generate estimated splits from video duration.
               </p>
             )}
 
@@ -422,13 +460,27 @@ function App() {
                   <p><strong>Event:</strong> {distance} {stroke}</p>
                   <p><strong>Lane:</strong> {lane}</p>
                   <p><strong>Video:</strong> {fileName || "No Video Uploaded"}</p>
-                  <p><strong>Frames Extracted:</strong> {frames.length}</p>
-                  <h1 style={{ color: "#38bdf8" }}>Technical Review</h1>
+                  <p><strong>Video Duration:</strong> {videoDurationSeconds ? formatTime(videoDurationSeconds) : "No video duration available"}</p>
+                  <h1 style={{ color: "#38bdf8" }}>Estimated Split Report</h1>
                 </div>
 
-                <div style={{ background: "#1e1b4b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
-                  <h3>Split Analysis</h3>
-                  {getSplitAnalysis().map((note, index) => (
+                {estimatedSplits && (
+                  <div style={{ background: "#1e1b4b", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
+                    <h3>Estimated Splits</h3>
+                    <p><strong>15m:</strong> {formatTime(estimatedSplits.split15)}</p>
+                    <p><strong>35m:</strong> {formatTime(estimatedSplits.split35)}</p>
+                    {estimatedSplits.split50 && <p><strong>50m:</strong> {formatTime(estimatedSplits.split50)}</p>}
+                    {estimatedSplits.split75 && <p><strong>75m:</strong> {formatTime(estimatedSplits.split75)}</p>}
+                    {estimatedSplits.split100 && <p><strong>100m:</strong> {formatTime(estimatedSplits.split100)}</p>}
+                    {estimatedSplits.split150 && <p><strong>150m:</strong> {formatTime(estimatedSplits.split150)}</p>}
+                    {estimatedSplits.split250 && <p><strong>250m:</strong> {formatTime(estimatedSplits.split250)}</p>}
+                    <p><strong>Finish:</strong> {formatTime(estimatedSplits.finalTime)}</p>
+                  </div>
+                )}
+
+                <div style={{ background: "#0f172a", padding: "18px", borderRadius: "12px", marginBottom: "15px" }}>
+                  <h3>Split-Based Feedback</h3>
+                  {getSplitFeedback().map((note, index) => (
                     <p key={index}>• {note}</p>
                   ))}
                 </div>
@@ -446,10 +498,10 @@ function App() {
                 </div>
 
                 <div style={{ background: "#3b1d0b", padding: "18px", borderRadius: "12px" }}>
-                  <h3>Next Step</h3>
+                  <h3>Important</h3>
                   <p>
-                    This now supports split-based feedback. The next major step is AI vision so SwimAI can detect elbow position,
-                    kick mechanics, underwater distance, and breakout quality directly from extracted frames.
+                    These splits are estimated from video duration only. For accurate splits, SwimAI will need
+                    either manual timeline markers or AI/computer vision to detect the start, 15m, 35m, walls, and finish.
                   </p>
                 </div>
               </>
